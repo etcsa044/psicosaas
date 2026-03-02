@@ -1,0 +1,250 @@
+# PsicoSaaS — Backend Technical Summary
+
+SaaS multi-tenant para psicólogos. Backend API REST completo, listo para consumir desde un frontend.
+
+---
+
+## Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Runtime | Node.js + TypeScript (ES2020) |
+| Framework | Express 5 |
+| Database | MongoDB Atlas (Mongoose 9) |
+| Cache | Redis (ioredis) — configurado pero opcional |
+| Auth | JWT (access + refresh tokens con rotación) |
+| Validation | Zod schemas |
+| Security | Helmet, CORS, Rate Limiting (express-rate-limit) |
+| Passwords | bcryptjs (12 salt rounds) |
+| Logging | Winston |
+| AI | OpenAI GPT adapter (bot module) |
+| Messaging | WhatsApp Business API (webhook) |
+| Payments | Mercado Pago (webhook) |
+
+---
+
+## Arquitectura
+
+```
+src/
+├── config/         # DB, logger, env config
+├── shared/
+│   ├── errors/     # AppError hierarchy (404, 400, 401, 403, 409)
+│   ├── middleware/  # auth, tenant, permission, rateLimiter, validator, errorHandler
+│   ├── plugins/    # Mongoose: tenantPlugin, softDeletePlugin, auditPlugin
+│   ├── storage/    # File upload (local + S3-ready)
+│   ├── types/      # IAuthRequest, IAuthUser
+│   └── utils/      # Cursor-based pagination
+├── modules/        # 13 domain modules (each: model, service, controller, routes, validation)
+├── jobs/           # Scheduled jobs (empty, ready for cron)
+├── app.ts          # Express app setup + route mounting
+└── server.ts       # Bootstrap, graceful shutdown
+```
+
+**Patrón por módulo:** `models/ → service.ts → controller.ts → routes.ts → validation.ts`
+
+---
+
+## Multi-Tenancy
+
+- **Aislamiento por tenantId** (string UUID) presente en todos los models
+- `tenantPlugin` de Mongoose inyecta `tenantId` en todas las queries automáticamente
+- [tenantMiddleware](file:///c:/Users/Benicio/.gemini/antigravity/scratch/psicosaas/src/shared/middleware/tenant.middleware.ts#5-12) extrae el `tenantId` del JWT y lo inyecta en `req.tenantId`
+- Cada query filtra por `tenantId` — un tenant nunca accede a datos de otro
+
+---
+
+## Autenticación & Autorización
+
+### Auth Flow
+1. **Register** → crea Tenant + User (OWNER) + roles del sistema + tokens
+2. **Login** → valida credenciales → devuelve access + refresh tokens
+3. **Refresh** → rotación de tokens (el viejo se revoca, se emite uno nuevo)
+4. **Logout** → revoca el refresh token
+
+### Tokens
+- **Access Token**: JWT firmado, contiene `{ _id, tenantId, email, roleId }`, expira en 15m
+- **Refresh Token**: JWT firmado, contiene `{ _id, tenantId }`, expira en 7d, almacenado en DB con TTL auto-cleanup
+
+### RBAC (Role-Based Access Control)
+- **33 permisos** granulares agrupados en categorías: clinical, patient, appointment, financial, admin, bot, reports
+- **6 roles de sistema** por tenant: OWNER, SUPERVISOR_CLINICO, ASSISTANT, RECEPCIONISTA, CONTADOR, IA_BOT_INTERNAL
+- Roles custom creables por tenant
+- Middleware [requirePermission('PERMISSION_CODE')](file:///c:/Users/Benicio/.gemini/antigravity/scratch/psicosaas/src/shared/middleware/permission.middleware.ts#7-55) en cada endpoint
+- Audit trail de cambios en roles
+
+---
+
+## Módulos & API Endpoints (~55 endpoints)
+
+### 1. Auth (`/api/auth`)
+| Method | Path | Descripción |
+|--------|------|------------|
+| POST | `/register` | Registrar psicólogo (rate limited) |
+| POST | `/login` | Login (rate limited) |
+| POST | `/refresh-token` | Refrescar access token |
+| POST | `/logout` | Cerrar sesión |
+
+### 2. Tenant (`/api/tenant`)
+| Method | Path | Descripción |
+|--------|------|------------|
+| GET | `/` | Ver datos del tenant |
+| PATCH | `/` | Actualizar tenant |
+
+### 3. Branding (`/api/branding`)
+| Method | Path | Descripción |
+|--------|------|------------|
+| GET | `/` | Ver branding (nombre público, logo, colores) |
+| PATCH | `/` | Actualizar branding |
+
+### 4. RBAC / Roles (`/api/roles`)
+| Method | Path | Descripción |
+|--------|------|------------|
+| GET | `/` | Listar roles del tenant |
+| POST | `/` | Crear rol custom |
+| GET | [/:id](file:///c:/Users/Benicio/.gemini/antigravity/scratch/psicosaas/src/shared/errors/AppError.ts#37-42) | Ver rol por ID |
+| PATCH | `/:id/permissions` | Actualizar permisos de un rol |
+| DELETE | [/:id](file:///c:/Users/Benicio/.gemini/antigravity/scratch/psicosaas/src/shared/errors/AppError.ts#37-42) | Eliminar rol (solo custom) |
+
+### 5. Pacientes (`/api/patients`)
+| Method | Path | Descripción |
+|--------|------|------------|
+| POST | `/` | Crear paciente |
+| GET | `/` | Listar (paginación cursor, búsqueda, filtro por status) |
+| GET | [/:id](file:///c:/Users/Benicio/.gemini/antigravity/scratch/psicosaas/src/shared/errors/AppError.ts#37-42) | Ver paciente |
+| PATCH | [/:id](file:///c:/Users/Benicio/.gemini/antigravity/scratch/psicosaas/src/shared/errors/AppError.ts#37-42) | Actualizar paciente |
+| DELETE | [/:id](file:///c:/Users/Benicio/.gemini/antigravity/scratch/psicosaas/src/shared/errors/AppError.ts#37-42) | Soft delete |
+
+### 6. Consentimientos (`/api/consents`)
+- Templates de consentimiento informado
+- Firma digital (registro de consentimientos por paciente)
+
+### 7. Attachments (`/api/attachments`)
+- Upload de archivos (local + S3-ready)
+- Asociados a paciente/historia clínica
+
+### 8. Historia Clínica (`/api/clinical-records`)
+| Method | Path | Descripción |
+|--------|------|------------|
+| POST | `/` | Crear entrada clínica |
+| GET | [/:id](file:///c:/Users/Benicio/.gemini/antigravity/scratch/psicosaas/src/shared/errors/AppError.ts#37-42) | Ver entrada |
+| GET | `/patient/:patientId` | Ver historia completa del paciente |
+| PATCH | [/:id](file:///c:/Users/Benicio/.gemini/antigravity/scratch/psicosaas/src/shared/errors/AppError.ts#37-42) | Actualizar entrada |
+
+### 9. Turnos & Agenda (`/api/appointments`)
+| Method | Path | Descripción |
+|--------|------|------------|
+| POST | `/` | Crear turno (con detección de conflictos) |
+| GET | `/` | Listar por rango de fechas |
+| GET | `/availability` | Consultar horarios disponibles |
+| GET | [/:id](file:///c:/Users/Benicio/.gemini/antigravity/scratch/psicosaas/src/shared/errors/AppError.ts#37-42) | Ver turno |
+| PATCH | [/:id](file:///c:/Users/Benicio/.gemini/antigravity/scratch/psicosaas/src/shared/errors/AppError.ts#37-42) | Modificar turno |
+| PATCH | `/:id/status` | Cambiar estado (confirmar, cancelar, no_show, completar) |
+| GET | `/schedule/:professionalId` | Ver agenda semanal |
+| PUT | `/schedule` | Configurar horarios |
+| POST | `/schedule/block` | Bloquear horario |
+| POST | `/schedule/vacation` | Agregar vacaciones |
+
+### 10. Pagos (`/api/payments`)
+| Method | Path | Descripción |
+|--------|------|------------|
+| POST | `/` | Registrar pago |
+| GET | `/` | Listar pagos por rango |
+| GET | `/report` | Reporte mensual por método de pago |
+| GET | `/patient/:patientId` | Pagos de un paciente (paginado) |
+| GET | `/patient/:patientId/balance` | Saldo del paciente |
+| GET | [/:id](file:///c:/Users/Benicio/.gemini/antigravity/scratch/psicosaas/src/shared/errors/AppError.ts#37-42) | Ver pago |
+| PATCH | [/:id](file:///c:/Users/Benicio/.gemini/antigravity/scratch/psicosaas/src/shared/errors/AppError.ts#37-42) | Actualizar pago |
+
+### 11. Suscripciones (`/api/subscription`)
+| Method | Path | Descripción |
+|--------|------|------------|
+| GET | `/` | Ver suscripción actual |
+| POST | `/upgrade` | Cambiar plan (basic/professional/premium) |
+| POST | `/cancel` | Cancelar suscripción |
+| GET | `/invoices` | Ver facturas |
+| POST | `/webhook/mercado-pago` | Webhook de Mercado Pago (sin auth) |
+
+**Planes:** free_trial → basic ($4.999) → professional ($9.999) → premium ($19.999 ARS/mes)
+
+### 12. Métricas (`/api/metrics`)
+- Métricas mensuales del tenant: pacientes, turnos, financiero, bot
+- Historial comparativo (rango de meses)
+
+### 13. Bot IA (`/api/bot`)
+- Webhook para WhatsApp Business API
+- Pipeline: keyword detection → governance pre-check → GPT response / task execution → governance post-check → audit log
+- **Task Engine:** puede ejecutar tareas administrativas (consultar disponibilidad, gestionar turnos, verificar deudas)
+- **Governance Guard:** filtra contenido sensible, escala a profesional cuando es necesario
+
+---
+
+## Modelos de Datos (18 models)
+
+| Model | Fields clave |
+|-------|-------------|
+| **User** | email, passwordHash (select:false), roleId, profile (firstName, lastName, licenseNumber, phone), isActive, lastLoginAt |
+| **RefreshToken** | token (unique), userId, expiresAt (TTL), revokedAt, replacedBy, createdByIp |
+| **Tenant** | tenantId (uuid), ownerUserId, status, plan, trialEndsAt, country (code, currency, timezone) |
+| **Role** | name, permissions[], isSystem, auditTrail[] |
+| **Permission** | code, category, description |
+| **Patient** | personalInfo (firstName, lastName, dni, birthDate, gender, phone, email, address), emergencyContact, status, insuranceInfo, generalObservations |
+| **ClinicalEntry** | patientId, professionalId, date, type (session/evaluation/note), content (structured), privateNotes |
+| **Appointment** | patientId, professionalId, startTime, endTime, duration, type, modality (in_person/online), status, meetingUrl, isRecurring |
+| **Schedule** | professionalId, dayOfWeek, startTime, endTime, slotDuration, blockedSlots[], vacations[] |
+| **Payment** | patientId, amount, currency, method (cash/transfer/card/insurance), status, receiptNumber, insuranceCoverage |
+| **Subscription** | plan, status, currentPeriod, pricing, paymentHistory[], externalSubscriptionId |
+| **Invoice** | invoiceNumber, amount, currency, status, issuedAt, dueDate, paidAt |
+| **Branding** | nombrePublico, logo, colors, nombreDelBot, tonoDelBot |
+| **ConsentTemplate** | title, content, version, isActive |
+| **ConsentDocument** | patientId, templateId, signedAt, signatureType |
+| **Attachment** | patientId, filename, mimeType, size, path/url |
+| **TenantMetrics** | period (year/month), patients stats, appointments stats, financial stats, bot stats |
+| **BotAuditLog** | sessionId, userPhone, messageContent, botResponse, governanceAction, latencyMs |
+
+**Plugins de Mongoose:**
+- `tenantPlugin` → agrega `tenantId` field + auto-filter en queries
+- `softDeletePlugin` → `isDeleted`, `deletedAt`, [softDelete()](file:///c:/Users/Benicio/.gemini/antigravity/scratch/psicosaas/src/modules/patient/patient.service.ts#54-59) method
+- `auditPlugin` → `createdBy`, `updatedBy`, `createdAt`, `updatedAt`
+
+---
+
+## Seguridad implementada
+
+- ✅ JWT con rotación de refresh tokens (detección de reuso)
+- ✅ Passwords hasheados con bcrypt (12 rounds)
+- ✅ RBAC granular con 33 permisos
+- ✅ Aislamiento multi-tenant por query
+- ✅ Helmet (HTTP security headers)
+- ✅ CORS configurable
+- ✅ Rate limiting (global + auth-specific)
+- ✅ Validación con Zod en todos los endpoints
+- ✅ Error handler centralizado (no leak de info en production)
+- ✅ `passwordHash` excluido de queries por defecto
+- ✅ Graceful shutdown
+
+---
+
+## Características técnicas relevantes para el frontend
+
+1. **Autenticación**: Bearer token en header `Authorization`. Access token de 15 min, refresh automático
+2. **Paginación**: Cursor-based (`?cursor=<ObjectId>&limit=20`), respuesta `{ data, pagination: { nextCursor, hasMore } }`
+3. **Errores**: Formato consistente `{ status: 'error', code: 'CODE', message: '...' }`
+4. **IDs**: MongoDB ObjectIds (`507f1f77bcf86cd799439011`)
+5. **Fechas**: ISO 8601 strings
+6. **Moneda**: ARS por defecto, precios en centavos (ej: 4999 = $49,99)
+7. **Estado del tenant**: trial → active → suspended → cancelled
+8. **Real-time**: No hay WebSockets implementados (polling sería necesario para notificaciones)
+9. **File uploads**: Multipart form-data, almacenamiento local (preparado para S3)
+10. **CORS**: Configurable via `CORS_ORIGIN` env var
+
+---
+
+## Lo que NO tiene el backend (gaps para MVP)
+
+- ❌ WebSockets / real-time events
+- ❌ Email sending (módulo de notificaciones existe como scaffold pero no envía)
+- ❌ API documentation (Swagger/OpenAPI)
+- ❌ Containerización (Docker)
+- ❌ CI/CD pipeline
+- ❌ Frontend

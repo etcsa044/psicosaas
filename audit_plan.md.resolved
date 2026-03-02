@@ -1,0 +1,62 @@
+# Backend Architecture Audit Plan
+
+## 1. Diseño del Sistema y Capas (Architecture & Layers)
+- [ ] Separación de responsabilidades (Routing, Controllers, Services, Models)
+- [ ] Inyección de dependencias y bajo acoplamiento
+- [ ] Uso de plugins compartidos (ej. [tenant.plugin.ts](file:///c:/Users/Benicio/.gemini/antigravity/scratch/psicosaas/src/shared/plugins/tenant.plugin.ts))
+- [ ] Patrones de diseño implementados (Module Pattern, Singleton para servicios)
+
+## 2. Base de Datos y ODM (Mongoose)
+- [ ] Estructura de los esquemas y validaciones embebidas
+- [ ] Estrategia de Multi-tenancy (Aislamiento de datos por `tenantId`)
+- [ ] Índices y rendimiento en lecturas/escrituras
+- [ ] Manejo de transacciones (si aplica)
+
+## 3. Seguridad y Autenticación (Security & Auth)
+- [ ] Implementación de JWT (Access + Refresh tokens)
+- [ ] Almacenamiento seguro de contraseñas (bcrypt)
+- [ ] Políticas CORS y cabeceras de seguridad (Helmet)
+- [ ] Protección contra ataques comunes (Rate Limiting, XSS, NoSQL Injection)
+- [ ] RBAC (Role-Based Access Control) y lógica de permisos
+
+## 4. Manejo de Errores y Validaciones
+- [ ] Centralización del manejo de errores (Global Error Handler)
+- [ ] Formateo consistente de respuestas API
+- [ ] Uso de Zod para validación de entrada
+- [ ] Logging estructurado (Winston/Pino)
+
+## 5. Código Limpio y Testing (Clean Code & QA)
+- [ ] Configuración de TypeScript (strict mode)
+- [ ] Cobertura de pruebas unitarias (Jest)
+- [ ] Manejo de deuda técnica visible
+
+---
+
+# Frontend Architecture Audit Plan
+
+## 1. Arquitectura Next.js y Routing
+- [ ] Uso del App Router (`app/`)
+- [ ] Estrategia de renderizado (SSR, SSG, CSR)
+- [ ] Organización de layouts y páginas
+- [ ] Manejo de variables de entorno
+
+## 2. Gestión de Estado y Datos (State & Data Fetching)
+- [ ] Uso de React Query para estado del servidor (caching, revalidación)
+- [ ] Uso de Zustand para estado global del cliente
+- [ ] Configuración de Axios (interceptores, timeouts)
+
+## 3. Seguridad y BFF (Backend for Frontend)
+- [ ] Arquitectura BFF para manejo de `HttpOnly` cookies
+- [ ] Middleware edge para protección de rutas
+- [ ] Manejo de expiración de sesión (Silent Refresh)
+- [ ] Headers de seguridad configurados en [next.config.ts](file:///c:/Users/Benicio/.gemini/antigravity/scratch/psicosaas/client/next.config.ts)
+
+## 4. Diseño de Componentes (UI/UX & Styling)
+- [ ] Uso de Tailwind CSS (utilidades vs clases semánticas)
+- [ ] Reusabilidad de componentes base (Buttons, Inputs, Modals)
+- [ ] Consistencia en el diseño (Design System / Theme)
+
+## 5. Código Limpio y Testing (Clean Code & QA)
+- [ ] Configuración de TypeScript y Eslint
+- [ ] Pruebas unitarias de lógica (hooks, utils, stores)
+- [ ] Manejo de errores en UI (Error Boundaries, Toast notifications)

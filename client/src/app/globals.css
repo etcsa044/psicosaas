@@ -1,0 +1,63 @@
+@import "tailwindcss";
+
+/* ── Design Tokens (CSS Custom Properties) ── */
+:root {
+    /* Default palette: Profesional Azul */
+    --color-primary: #2563EB;
+    --color-primary-light: #3B82F6;
+    --color-accent: #60A5FA;
+    --color-bg: #F8FAFC;
+    --color-bg-dark: #0F172A;
+    --color-surface: #FFFFFF;
+    --color-surface-dark: #1E293B;
+    --color-text: #0F172A;
+    --color-text-dark: #F1F5F9;
+    --color-text-muted: #64748B;
+    --color-text-muted-dark: #94A3B8;
+    --color-border: #E2E8F0;
+    --color-border-dark: #334155;
+    --color-success: #10B981;
+    --color-warning: #F59E0B;
+    --color-error: #EF4444;
+
+    /* Font */
+    --font-sans: var(--font-inter), system-ui, -apple-system, sans-serif;
+
+    /* Radius */
+    --radius-sm: 0.375rem;
+    --radius: 0.5rem;
+    --radius-lg: 0.75rem;
+    --radius-xl: 1rem;
+}
+
+/* ── Base Styles ── */
+body {
+    font-family: var(--font-sans);
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.dark body {
+    background-color: var(--color-bg-dark);
+    color: var(--color-text-dark);
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--color-text-muted);
+    border-radius: 3px;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+    background: var(--color-text-muted-dark);
+}

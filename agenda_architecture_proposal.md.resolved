@@ -1,0 +1,90 @@
+# 🗓️ Propuesta de Arquitectura — Módulo Agenda Clínica
+
+**Objetivo:** Diseñar un módulo de agenda centrado en la productividad del profesional, optimizado para velocidad, cero fricción y recurrencia inteligente.
+
+---
+
+## 🖥️ 1. Arquitectura Frontend (UI/UX)
+
+### Layout de Vista Única (Split Pane)
+- **Columna Izquierda (Sidebar de Pacientes):**
+  - Buscador rápido con Autocomplete.
+  - Lista interactiva ordenada por frecuencia/última sesión, con indicador rojo de deuda.
+  - Los ítems de la lista serán *Draggables* (arrastrables).
+- **Columna Central/Derecha (Calendario Semanal):**
+  - **Grid CSS Dedicado:** Interfaz customizada (no una librería genérica pesada) para control absoluto de los *slots* horarios (disponible, ocupado, bloqueado).
+  - Detección de *Drop* (soltar) para crear el turno en ese instante.
+
+### Stack Tecnológico
+- **Drag & Drop:** `@dnd-kit/core` por ser liviano, accesible y compatible con React 18 / Next.js.
+- **Estado UI (Zustand):** Para manejar la fecha actual (semana visible) y el panel lateral.
+- **Data (React Query):** Caché de turnos y sincronización real-time optimista.
+- **Componentes Base (Radix UI / shadcn):** Para los *Popovers* de creación rápida al seleccionar un rango horario.
+
+---
+
+## 🔁 2. Flujo de Creación y Recurrencia
+
+### A. Creación a Velocidad
+1. **Drop Patient:** Al arrastrar un paciente, un *Optimistic Update* muestra la tarjeta en la UI de inmediato, creando el POST al BFF en background.
+2. **Select Range:** Al hacer "drag" sobre un bloque vacío, se abre un *Popover* in-place preguntando por el paciente (Búsqueda o "Nuevo").
+
+### B. Recurrencia Inteligente
+- El backend actual ya posee el campo `recurringPattern: { frequency, interval, endDate, parentAppointmentId }`.
+- **En la UI:** Un `Checkbox` de recurrencia que ofrezca `Semanal`, `Quincenal` y `Mensual`.
+- **Inteligencia:** Al seleccionar el paciente en el Popover, si el backend detecta historial (ej. "Viene todos los martes"), el BFF retornará una *sugerencia* que el Frontend pre-seleccionará en el form.
+- **Edición en Serie vs Instancia:**
+  - Editar/Cancelar un turno recurrente abrirá un modal nativo: "¿Modificar sólo este turno o toda la serie a futuro?".
+  - El backend gestionará esto rompiendo el vínculo o cancelando los `child appointments` en base al `parentAppointmentId`.
+  - Visualmente, las sesiones recurrentes tendrán un ícono de "ciclo" sutil 🔄.
+
+---
+
+## ⏰ 3. Backend: Recordatorios y Disponibilidad
+
+### Arquitectura de Recordatorios (72hs / 48hs / 24hs)
+El modelo [Appointment](file:///c:/Users/Benicio/.gemini/antigravity/scratch/psicosaas/src/modules/appointment/models/appointment.model.ts#6-41) actual contiene un array `reminders`.
+- Al **agendar** el turno, el backend debe pre-calcular las fechas de inyección en el array `reminders`:
+  - `scheduledFor: [Turno - 72hs]`
+  - `scheduledFor: [Turno - 48hs]` (Opcional, si no confirma).
+- **Ejecución (Worker/Cron Job):**
+  - Se requiere un CRON job ligero (`node-cron` o equivalente, o usando el Queue system si hay Redis) que corra cada 10 minutos buscando `reminders` con `status: 'pending'` y `scheduledFor <= Date.now()`.
+  - Hará el dispatch al servicio correspondiente (WhatsApp/Email/SMS).
+
+### Gestión de Disponibilidad (El Motor)
+Requerimos crear un nuevo Modelo/Colección en Backend: `AvailabilityPattern`.
+- Define los "bloques de trabajo" por día de la semana (Ej: Lunes 9:00 - 13:00, 14:00 - 18:00).
+- Duración del *slot* (ej. 50 mins + 10 mins buffer).
+- Excepciones: Fechas específicas bloqueadas (Vacaciones/Feriados).
+- **Impacto Frontend:** El calendario renderizará zonas grises/rayadas para las ausencias de disponibilidad, y prevendrá el *drop* sobre las mismas.
+
+---
+
+## 👤 4. Reserva Online por parte del Paciente (Booking Flow)
+
+- **Modo "Reserva Online Activada":** Un toggle en la config del Tenant.
+- **Ruta Pública:** `[tenantId].psicosaass.com/book` o `/book/[tenantId]`.
+- En esta ruta, se calcula dinámicamente: `Disponibilidad - Turnos Ocupados = Slots Libres`.
+- Al confirmar el paciente, entra en `status: "pending_confirmation"` (si el profesional configuró revisión manual) o `scheduled` directamente.
+- Al tratarse de un Tenant público, esta será una ruta Server Component (SSR) rápida y cacheada para evitar ataques de fuerza bruta al DB.
+
+---
+
+## 📦 5. Fases de Desarrollo Recomendadas (MVP vs Fase Next)
+
+### MVP (Se implementará en Fase 2)
+1. **Grid de Calendario + Lista de Pacientes:** Layout y controles de vista semanal. Drag & Drop funcional.
+2. **Creación de Turnos (Rápida + Popover):** Con formulario de Zod unificado.
+3. **Manejo de Recurrencias Locales:** Usando la base actual (Parent/Child turnos).
+4. **Disponibilidad Básica del Profesional:** Configuración de matriz horaria de lunes a domingo.
+
+### Fase 3 (Desacoplada del MVP Crítico)
+1. **Job de Recordatorios a 72hs:** Requiere integrar cola de tareas (Redis/BullMQ o CRON).
+2. **Reserva Online Paciente:** El portal público de agendamiento y sus flujos de confirmación/email al paciente.
+3. **Sugerencia basada en IA (Opcional):** Machine Learning básico de frecuencias de asistencia.
+
+---
+
+## 🚨 Riesgos Técnicos
+1. **Complejidad de Recurrencia:** Manejar modificaciones a turnos infinitos. Se aconseja generar los turnos en la BD con un límite (ej. materializar a 1 año vista) en lugar de evaluar recursión real-time eterna, protegiendo así los índices de MongoDB.
+2. **Zonas Horarias (Timezones):** Es vital normalizar los guardados en UTC puro y que el Frontend convierta a local browser time, dado que el [tenant](file:///c:/Users/Benicio/.gemini/antigravity/scratch/psicosaas/src/shared/middleware/tenant.middleware.ts#5-12) (profesional) y `patient` podrían no estar en la misma zona si operan remoto.

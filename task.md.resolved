@@ -1,0 +1,35 @@
+# Auth Smoke Tests — Base sólida antes de Fase 1
+
+## 1. Unit Tests
+- [ ] Backend `npm test` — todos pasan
+- [ ] Backend `npm run build` — compila sin errores
+- [ ] Frontend `npm test` — 5 archivos pasan
+- [ ] Frontend `npm run build` — Next.js build limpio
+- [ ] Arreglar cualquier fallo encontrado
+
+## 2. E2E Smoke Tests (browser real)
+- [ ] 1️⃣ Login real E2E (cookie HttpOnly, access token en memoria)
+- [ ] 2️⃣ Silent refresh con token expirado
+- [ ] 3️⃣ Logout real (cookie eliminada, token revocado, middleware bloquea)
+- [ ] 4️⃣ Hard reload / hydration (no flicker, no error)
+- [ ] 5️⃣ Sesión inválida manual (borrar cookie → middleware bloquea)
+
+## 3. Validaciones de seguridad
+- [ ] CSP headers activos
+- [ ] No token en localStorage
+- [ ] No token en window
+- [ ] No inline scripts bloqueados
+
+## 4. Reporte final
+- [x] Generar walkthrough y reporte de auditoría arquitectónica PASS/FAIL
+- [x] Aplicar parches de recomendación surgidos de auditoría (CSRF Headers, CORS rules)
+
+## 5. [Fase 1] Mongoose Transactions
+- [ ] Refactor [rbac.service.ts](file:///c:/Users/Benicio/.gemini/antigravity/scratch/psicosaas/src/modules/rbac/rbac.service.ts) [createSystemRolesForTenant](file:///c:/Users/Benicio/.gemini/antigravity/scratch/psicosaas/src/modules/rbac/rbac.service.ts#7-35) para soportar sessions
+- [ ] Refactor [auth.service.ts](file:///c:/Users/Benicio/.gemini/antigravity/scratch/psicosaas/src/modules/auth/auth.service.ts) [register](file:///c:/Users/Benicio/.gemini/antigravity/scratch/psicosaas/src/modules/auth/auth.controller.ts#6-15) para usar Mongoose Sessions
+- [ ] Validar flujos de error (Rollback)
+
+## 6. [Fase 1] Dashboard Base
+- [ ] Crear ruta `/login` profesional con Tailwind/React Hook Form
+- [ ] Crear Layout protegido de `/dashboard`
+- [ ] Integrar redirecciones desde middleware
