@@ -9,14 +9,14 @@ export interface CreateAppointmentData {
 }
 
 export const agendaService = {
-    async getWeeklyAgenda(startISO: string): Promise<WeekAgenda> {
+    async getWeeklyAgenda(startISO: string, days?: number): Promise<WeekAgenda> {
         const response = await api.get<{ status: string, data: WeekAgenda }>('/agenda/week', {
-            params: { start: startISO }
+            params: { start: startISO, days }
         });
         return response.data.data;
     },
 
-    async createAppointment(data: CreateAppointmentData): Promise<void> {
+    async createAppointment(data: CreateAppointmentData): Promise<any> {
         // Map frontend minimum drop payload to backend explicit requirement schema
         const payload = {
             ...data,
@@ -26,6 +26,7 @@ export const agendaService = {
             isRecurring: false,      // Single drop for now 
             overrideFrequencyAlert: data.overrideFrequencyAlert
         };
-        await api.post('/agenda/appointment', payload);
+        const response = await api.post('/agenda/appointment', payload);
+        return response.data.data;
     }
 };

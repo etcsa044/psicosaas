@@ -34,7 +34,7 @@ const ProfessionalSettingsSchema = new Schema<IProfessionalSettings>(
         defaultRules: {
             weeklyFrequencyPolicy: { type: WeeklyFrequencyPolicySchema, required: true },
             appointmentDurationMinutes: { type: Number, enum: [30, 45, 60, 90], default: 45 },
-            cancellationAlertThreshold: { type: Number, min: 1, default: null },
+            cancellationAlertThreshold: { type: Number, min: 1, default: 3 },
             cancellationAlertWindowDays: { type: Number, min: 1, max: 365, default: 30 }
         },
         patientTypeOverrides: {

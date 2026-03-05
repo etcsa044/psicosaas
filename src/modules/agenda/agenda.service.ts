@@ -21,21 +21,22 @@ interface DayAgenda {
     slots: Slot[];
 }
 
-interface WeekAgenda {
-    weekStart: Date;
+interface AgendaResult {
+    startDate: Date;
     days: DayAgenda[];
 }
 
-export const generateWeeklySlots = async (
+export const generateAgendaSlots = async (
     tenantId: string,
     professionalId: Types.ObjectId,
-    startDateUTC: Date
-): Promise<WeekAgenda> => {
+    startDateUTC: Date,
+    days: number = 7
+): Promise<AgendaResult> => {
     // Force to Start of Day UTC
-    const weekStart = new Date(Date.UTC(startDateUTC.getUTCFullYear(), startDateUTC.getUTCMonth(), startDateUTC.getUTCDate()));
+    const rangeStart = new Date(Date.UTC(startDateUTC.getUTCFullYear(), startDateUTC.getUTCMonth(), startDateUTC.getUTCDate()));
 
-    const weekEnd = new Date(weekStart);
-    weekEnd.setUTCDate(weekStart.getUTCDate() + 7);
+    const rangeEnd = new Date(rangeStart);
+    rangeEnd.setUTCDate(rangeStart.getUTCDate() + days);
 
     // 0. Fetch Professional Settings for Global Slot Duration
     const settings = await professionalSettingsService.getOrCreateSettings(tenantId, professionalId);
@@ -53,7 +54,7 @@ export const generateWeeklySlots = async (
         tenantId,
         professionalId,
         isDeleted: false,
-        date: { $gte: weekStart, $lt: weekEnd },
+        date: { $gte: rangeStart, $lt: rangeEnd },
     });
 
     // 3. Fetch Existing Appointments (Optimized index: { tenantId: 1, professionalId: 1, startAt: 1, status: 1 })
@@ -62,18 +63,18 @@ export const generateWeeklySlots = async (
         professionalId,
         isDeleted: false,
         status: { $in: ['scheduled', 'confirmed', 'pending_confirmation'] }, // Exclude cancelled/completed from blocking
-        startAt: { $gte: weekStart, $lt: weekEnd },
+        startAt: { $gte: rangeStart, $lt: rangeEnd },
     }).populate({ path: 'patientId', select: 'personalInfo patientType', match: { tenantId } }).sort({ startAt: 1 });
 
-    const agenda: WeekAgenda = {
-        weekStart,
+    const agenda: AgendaResult = {
+        startDate: rangeStart,
         days: [],
     };
 
-    // Construct the 7 days grid
-    for (let i = 0; i < 7; i++) {
-        const currentDayUTC = new Date(weekStart);
-        currentDayUTC.setUTCDate(weekStart.getUTCDate() + i);
+    // Construct the grid dynamically based on the days range
+    for (let i = 0; i < days; i++) {
+        const currentDayUTC = new Date(rangeStart);
+        currentDayUTC.setUTCDate(rangeStart.getUTCDate() + i);
         const dayOfWeek = currentDayUTC.getUTCDay();
 
         // Check if there is an exception for this specific date
@@ -275,7 +276,15 @@ export const createAtomicAppointment = async (
         // Fire-and-forget audit (outside transaction)
         logAuditEvent(tenantId, 'Appointment', baseAppointment._id as Types.ObjectId, 'CREATE', professionalId);
 
-        return baseAppointment;
+        const settings = await professionalSettingsService.getOrCreateSettings(tenantId, new Types.ObjectId(professionalId));
+        const cancellationWarning = await appointmentService.checkCancellationHistory(tenantId, new Types.ObjectId(data.patientId), settings);
+
+        const result = baseAppointment.toJSON() as any;
+        if (cancellationWarning) {
+            result._cancellationWarning = cancellationWarning;
+        }
+
+        return result;
     } catch (error) {
         await session.abortTransaction();
         throw error;

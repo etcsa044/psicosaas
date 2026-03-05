@@ -14,7 +14,11 @@ import { ConflictModal } from './ConflictModal';
 import { Slot } from '../types/agenda.types';
 import { useState, useMemo } from 'react';
 import { PatientSelectModal } from './PatientSelectModal';
+import { QuickCreatePatientModal } from './QuickCreatePatientModal';
+import { DayView } from './DayView';
+import { MonthView } from './MonthView';
 import { useDebounce } from '../../../hooks';
+import toast from 'react-hot-toast';
 import axios from 'axios';
 
 // Map API patient to draggable flat shape
@@ -30,12 +34,39 @@ function toDraggable(p: PatientListItem): DraggablePatient {
 }
 
 export function AgendaDashboard() {
-    const { currentWeekStart, nextWeek, prevWeek } = useAgendaUIStore();
-    const { data: agenda, isLoading, isError, error } = useWeeklyAgenda(currentWeekStart);
+    const { viewMode, setViewMode, currentDate, currentWeekStart, next, prev, today } = useAgendaUIStore();
+
+    // Determine API fetch window based on viewMode
+    const fetchWindow = useMemo(() => {
+        if (viewMode === 'month') {
+            const baseDate = new Date(currentDate);
+            const year = baseDate.getUTCFullYear();
+            const month = baseDate.getUTCMonth();
+            const firstDayOfMonth = new Date(Date.UTC(year, month, 1));
+
+            let startOffset = firstDayOfMonth.getUTCDay() - 1;
+            if (startOffset < 0) startOffset = 6;
+
+            const startDate = new Date(Date.UTC(year, month, 1 - startOffset));
+            return {
+                startISO: startDate.toISOString(),
+                days: 42
+            };
+        } else {
+            // For Day and Week view, fetching the 7-day week is sufficient
+            return {
+                startISO: currentWeekStart,
+                days: 7
+            };
+        }
+    }, [viewMode, currentDate, currentWeekStart]);
+
+    const { data: agenda, isLoading, isError, error } = useWeeklyAgenda(fetchWindow.startISO, fetchWindow.days);
     const { mutateAsync: createMutateAsync } = useCreateAppointment();
     const rescheduleMutation = useRescheduleAppointment();
 
     const [sidebarSearchTerm, setSidebarSearchTerm] = useState('');
+    const [isQuickCreateOpen, setIsQuickCreateOpen] = useState(false);
     const debouncedSearch = useDebounce(sidebarSearchTerm, 300);
     const { data: patientsData, isLoading: patientsLoading } = usePatients(debouncedSearch);
 
@@ -62,12 +93,13 @@ export function AgendaDashboard() {
     );
 
     // Format header date
-    const monthYear = new Intl.DateTimeFormat('es-AR', {
-        month: 'long',
-        year: 'numeric',
-        timeZone: 'UTC'
-    }).format(new Date(currentWeekStart));
-    const title = monthYear.charAt(0).toUpperCase() + monthYear.slice(1);
+    const d = new Date(viewMode === 'week' ? currentWeekStart : currentDate);
+    const titleOptions: Intl.DateTimeFormatOptions = viewMode === 'day'
+        ? { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }
+        : { month: 'long', year: 'numeric', timeZone: 'UTC' };
+
+    const formattedDate = new Intl.DateTimeFormat('es-AR', titleOptions).format(d);
+    const title = formattedDate.charAt(0).toUpperCase() + formattedDate.slice(1);
 
     const handleDragEnd = async (event: DragEndEvent) => {
         const { active, over } = event;
@@ -86,12 +118,17 @@ export function AgendaDashboard() {
 
             const executeCreate = async (override = false) => {
                 try {
-                    await createMutateAsync({
+                    const result = await createMutateAsync({
                         patientId: patient.id,
                         startAt: slot.startAt,
                         endAt: slot.endAt,
                         overrideFrequencyAlert: override
-                    });
+                    }) as any;
+
+                    if (result?._cancellationWarning?.warning) {
+                        toast(`Nota clínica: El paciente tuvo ${result._cancellationWarning.cancellationsLastPeriod} ausencias/cancelaciones recientes.`, { icon: '⚠️', duration: 6000 });
+                    }
+
                     console.log('Drop & Booking Successful!');
                     setConflictError(null);
                 } catch (error: any) {
@@ -116,11 +153,16 @@ export function AgendaDashboard() {
 
             const executeReschedule = async (override = false) => {
                 try {
-                    await rescheduleMutation.mutateAsync({
+                    const result = await rescheduleMutation.mutateAsync({
                         appointmentId,
                         newStartUTC: slot.startAt,
                         overrideFrequencyAlert: override
-                    });
+                    }) as any;
+
+                    if (result?._cancellationWarning?.warning) {
+                        toast(`Nota clínica: El paciente tuvo ${result._cancellationWarning.cancellationsLastPeriod} ausencias/cancelaciones recientes.`, { icon: '⚠️', duration: 6000 });
+                    }
+
                     console.log('Reschedule Successful!');
                     setConflictError(null);
                 } catch (error: any) {
@@ -143,12 +185,17 @@ export function AgendaDashboard() {
 
     const executeCreateFromClick = async (patientId: string, slot: Slot, override = false) => {
         try {
-            await createMutateAsync({
+            const result = await createMutateAsync({
                 patientId,
                 startAt: slot.startAt,
                 endAt: slot.endAt,
                 overrideFrequencyAlert: override
-            });
+            }) as any;
+
+            if (result?._cancellationWarning?.warning) {
+                toast(`Nota clínica: El paciente tuvo ${result._cancellationWarning.cancellationsLastPeriod} ausencias/cancelaciones recientes.`, { icon: '⚠️', duration: 6000 });
+            }
+
             console.log('Click Booking Successful!');
             setConflictError(null);
         } catch (error: any) {
@@ -208,22 +255,41 @@ export function AgendaDashboard() {
                 <main className="flex-1 flex flex-col min-w-0 bg-white dark:bg-gray-900">
                     <header className="h-16 flex-shrink-0 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between px-6 bg-white dark:bg-gray-900">
                         <div className="flex items-center gap-4">
-                            <button onClick={prevWeek} className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
+                            <button onClick={today} className="px-3 py-1.5 text-sm font-medium border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 transition">
+                                Hoy
+                            </button>
+                            <button onClick={prev} className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
                                 <ChevronLeft size={20} />
                             </button>
-                            <h1 className="text-xl font-bold text-gray-900 dark:text-white w-40 text-center">
+                            <h1 className="text-lg font-bold text-gray-900 dark:text-white min-w-[160px] text-center capitalize">
                                 {title}
                             </h1>
-                            <button onClick={nextWeek} className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
+                            <button onClick={next} className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
                                 <ChevronRight size={20} />
                             </button>
-                            <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1 ml-4">
-                                <button className="px-3 py-1 text-sm font-medium rounded-md bg-white dark:bg-gray-700 shadow-sm text-gray-900 dark:text-white">Semana</button>
-                                <button className="px-3 py-1 text-sm font-medium rounded-md text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Día</button>
+                            <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1 ml-4 shadow-inner">
+                                <button
+                                    onClick={() => setViewMode('day')}
+                                    className={`px-3 py-1 text-sm font-medium rounded-md transition-all ${viewMode === 'day' ? 'bg-white dark:bg-gray-700 shadow-sm text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}
+                                >
+                                    Día
+                                </button>
+                                <button
+                                    onClick={() => setViewMode('week')}
+                                    className={`px-3 py-1 text-sm font-medium rounded-md transition-all ${viewMode === 'week' ? 'bg-white dark:bg-gray-700 shadow-sm text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}
+                                >
+                                    Semana
+                                </button>
+                                <button
+                                    onClick={() => setViewMode('month')}
+                                    className={`px-3 py-1 text-sm font-medium rounded-md transition-all ${viewMode === 'month' ? 'bg-white dark:bg-gray-700 shadow-sm text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}
+                                >
+                                    Mes
+                                </button>
                             </div>
                         </div>
-                        <button className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition shadow-sm">
-                            + Nuevo Turno
+                        <button onClick={() => setIsQuickCreateOpen(true)} className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition shadow-sm">
+                            + Nuevo Paciente
                         </button>
                     </header>
 
@@ -238,6 +304,14 @@ export function AgendaDashboard() {
                                 <p className="font-semibold mb-2">Error cargando agenda</p>
                                 <p className="text-sm">{error instanceof Error ? error.message : 'Error desconocido'}</p>
                             </div>
+                        ) : viewMode === 'day' ? (
+                            <DayView
+                                dayAgenda={agenda?.days.find(d => d.date.toString().split('T')[0] === currentDate.split('T')[0]) || { date: currentDate, slots: [] }}
+                                onEmptySlotClick={handleEmptySlotClick}
+                                onAppointmentClick={(s) => setSelectedAppointment(s)}
+                            />
+                        ) : viewMode === 'month' ? (
+                            <MonthView agendaDays={agenda?.days} />
                         ) : (
                             <div className="grid grid-cols-7 gap-4 min-h-full">
                                 {agenda?.days.map((day, idx) => {
@@ -306,6 +380,10 @@ export function AgendaDashboard() {
                         executeCreateFromClick(patientId, slot);
                     }}
                 />
+            )}
+
+            {isQuickCreateOpen && (
+                <QuickCreatePatientModal onClose={() => setIsQuickCreateOpen(false)} />
             )}
         </DndContext>
     );

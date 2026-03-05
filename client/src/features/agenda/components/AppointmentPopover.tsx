@@ -3,6 +3,7 @@ import { X, CalendarX, Trash2, AlertCircle, Ban } from 'lucide-react';
 import { useDeleteAppointment } from '../hooks/useDeleteAppointment';
 import { useCancelAppointment } from '../hooks/useCancelAppointment';
 import { useState } from 'react';
+import toast from 'react-hot-toast';
 
 interface AppointmentPopoverProps {
     slot: Slot;
@@ -21,7 +22,18 @@ export function AppointmentPopover({ slot, onClose }: AppointmentPopoverProps) {
 
     const handleCancelConfirm = async () => {
         try {
-            await cancelAppointment({ appointmentId: slot.appointmentId! });
+            const response = await cancelAppointment({ appointmentId: slot.appointmentId! });
+
+            if (response?._cancellationWarning) {
+                toast(response._cancellationWarning, {
+                    icon: '⚠️',
+                    duration: 6000,
+                    style: { background: '#FEF2F2', color: '#991B1B', border: '1px solid #FCA5A5' }
+                });
+            } else {
+                toast.success('Turno cancelado exitosamente');
+            }
+
             onClose();
         } catch (error: any) {
             console.error("❌ Error cancelando turno:", error);
@@ -82,12 +94,12 @@ export function AppointmentPopover({ slot, onClose }: AppointmentPopoverProps) {
 
                     {confirmingAction ? (
                         <div className={`flex flex-col gap-2 p-3 border rounded-lg ${confirmingAction === 'cancel'
-                                ? 'bg-orange-50 dark:bg-orange-900/10 border-orange-200 dark:border-orange-900/50'
-                                : 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-900/50'
+                            ? 'bg-orange-50 dark:bg-orange-900/10 border-orange-200 dark:border-orange-900/50'
+                            : 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-900/50'
                             }`}>
                             <p className={`text-sm font-medium text-center mb-1 ${confirmingAction === 'cancel'
-                                    ? 'text-orange-800 dark:text-orange-300'
-                                    : 'text-red-800 dark:text-red-300'
+                                ? 'text-orange-800 dark:text-orange-300'
+                                : 'text-red-800 dark:text-red-300'
                                 }`}>
                                 {confirmingAction === 'cancel'
                                     ? '¿Cancelar este turno? El registro se conserva en el historial.'
@@ -105,8 +117,8 @@ export function AppointmentPopover({ slot, onClose }: AppointmentPopoverProps) {
                                     onClick={confirmingAction === 'cancel' ? handleCancelConfirm : handleDeleteConfirm}
                                     disabled={isPending}
                                     className={`flex-1 px-3 py-1.5 text-white rounded-md text-sm font-medium transition flex items-center justify-center gap-1 disabled:opacity-50 ${confirmingAction === 'cancel'
-                                            ? 'bg-orange-600 hover:bg-orange-700'
-                                            : 'bg-red-600 hover:bg-red-700'
+                                        ? 'bg-orange-600 hover:bg-orange-700'
+                                        : 'bg-red-600 hover:bg-red-700'
                                         }`}
                                 >
                                     {isPending

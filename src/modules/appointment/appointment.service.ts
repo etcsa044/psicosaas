@@ -165,7 +165,7 @@ export class AppointmentService {
             .lean() as any;
     }
 
-    async updateStatus(tenantId: string, id: string, status: string, userId: Types.ObjectId, reason?: string): Promise<IAppointment> {
+    async updateStatus(tenantId: string, id: string, status: string, userId: Types.ObjectId, reason?: string): Promise<IAppointment & { _cancellationWarning?: { warning: boolean; cancellationsLastPeriod: number } }> {
         const appointment = await Appointment.findOne({ tenantId, _id: id });
         if (!appointment) throw new NotFoundError('Appointment');
 
@@ -185,7 +185,17 @@ export class AppointmentService {
             field: 'status', from: oldStatus, to: status,
         });
 
-        return appointment;
+        const result = appointment.toJSON() as any;
+
+        if (status === 'cancelled') {
+            const settings = await professionalSettingsService.getOrCreateSettings(tenantId, appointment.professionalId as Types.ObjectId);
+            const cancellationWarning = await this.checkCancellationHistory(tenantId, appointment.patientId as Types.ObjectId, settings);
+            if (cancellationWarning) {
+                result._cancellationWarning = cancellationWarning;
+            }
+        }
+
+        return result;
     }
 
     /**
@@ -198,7 +208,7 @@ export class AppointmentService {
         userId: Types.ObjectId,
         source: 'PATIENT' | 'PROFESSIONAL' | 'SYSTEM',
         reason?: string
-    ): Promise<IAppointment> {
+    ): Promise<IAppointment & { _cancellationWarning?: { warning: boolean; cancellationsLastPeriod: number } }> {
         const appointment = await Appointment.findOne({ tenantId, _id: id });
         if (!appointment) throw new NotFoundError('Appointment');
 
@@ -220,7 +230,17 @@ export class AppointmentService {
             field: 'status', from: oldStatus, to: 'cancelled', source, reason,
         });
 
-        return appointment;
+        const result = appointment.toJSON() as any;
+
+        // Check cancellation history to return a warning if this cancellation crossed the threshold
+        const settings = await professionalSettingsService.getOrCreateSettings(tenantId, appointment.professionalId as Types.ObjectId);
+        const cancellationWarning = await this.checkCancellationHistory(tenantId, appointment.patientId as Types.ObjectId, settings);
+
+        if (cancellationWarning) {
+            result._cancellationWarning = cancellationWarning;
+        }
+
+        return result;
     }
 
     /**

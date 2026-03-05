@@ -19,10 +19,13 @@ export class AgendaController {
                 throw new Error('Invalid start date format. Must be ISO Date');
             }
 
-            const agenda = await agendaService.generateWeeklySlots(
+            const days = req.query.days ? parseInt(req.query.days as string, 10) : 7;
+
+            const agenda = await agendaService.generateAgendaSlots(
                 tenantId!,
                 new Types.ObjectId(user!._id),
-                startDateUTC
+                startDateUTC,
+                days // Request the dynamic number of days (e.g. 7 or 42)
             );
 
             sendSuccess(res, agenda);
