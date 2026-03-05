@@ -4,6 +4,7 @@ import AvailabilityException from '../availability/models/availabilityException.
 import Appointment, { IAppointment } from '../appointment/models/appointment.model';
 import { professionalSettingsService } from '../professional-settings/professionalSettings.service';
 import { appointmentService } from '../appointment/appointment.service';
+import { logAuditEvent } from '@shared/services/entityAuditLog.service';
 import Patient from '../patient/models/patient.model';
 
 interface Slot {
@@ -203,6 +204,7 @@ export const createAtomicAppointment = async (
             notes: data.notes,
             isRecurring: data.isRecurring,
             status: 'scheduled',
+            createdBy: professionalId,
             reminders: [] // Reminders Cron will fill this later (Out of MVP scope)
         });
 
@@ -269,6 +271,10 @@ export const createAtomicAppointment = async (
         }
 
         await session.commitTransaction();
+
+        // Fire-and-forget audit (outside transaction)
+        logAuditEvent(tenantId, 'Appointment', baseAppointment._id as Types.ObjectId, 'CREATE', professionalId);
+
         return baseAppointment;
     } catch (error) {
         await session.abortTransaction();

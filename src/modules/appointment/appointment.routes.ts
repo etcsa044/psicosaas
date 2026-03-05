@@ -16,6 +16,7 @@ router.get('/:id', requirePermission('VIEW_APPOINTMENT'), (req, res, next) => ap
 router.patch('/:id', requirePermission('EDIT_APPOINTMENT'), (req, res, next) => appointmentController.update(req as any, res, next));
 router.patch('/:id/status', requirePermission('EDIT_APPOINTMENT'), (req, res, next) => appointmentController.updateStatus(req as any, res, next));
 router.patch('/:id/reschedule', requirePermission('EDIT_APPOINTMENT'), (req, res, next) => appointmentController.reschedule(req as any, res, next));
+router.patch('/:id/cancel', requirePermission('CANCEL_APPOINTMENT'), (req, res, next) => appointmentController.cancel(req as any, res, next));
 router.delete('/:id', requirePermission('CANCEL_APPOINTMENT'), (req, res, next) => appointmentController.delete(req as any, res, next));
 
 // Schedule

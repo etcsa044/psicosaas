@@ -7,7 +7,7 @@ interface SlotDroppableProps {
     onAppointmentClick?: (slot: Slot) => void;
 }
 
-export function SlotDroppable({ slot, onAppointmentClick }: SlotDroppableProps) {
+export function SlotDroppable({ slot, onAppointmentClick, onEmptySlotClick }: SlotDroppableProps & { onEmptySlotClick?: (slot: Slot) => void }) {
     const { setNodeRef, isOver } = useDroppable({
         id: slot.startAt,
         data: {
@@ -35,7 +35,12 @@ export function SlotDroppable({ slot, onAppointmentClick }: SlotDroppableProps) 
     return (
         <div
             ref={setNodeRef}
-            className={`border rounded-lg p-2 flex flex-col items-center justify-center text-xs font-medium ${bgClass}`}
+            onClick={() => {
+                if (slot.status === 'available') {
+                    onEmptySlotClick?.(slot);
+                }
+            }}
+            className={`border rounded-lg p-2 flex flex-col items-center justify-center text-xs font-medium ${bgClass} ${slot.status === 'available' ? 'cursor-pointer' : ''}`}
         >
             <span>{startHour}</span>
             <span className="text-[10px] opacity-70">{endHour}</span>

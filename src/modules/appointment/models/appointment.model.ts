@@ -20,6 +20,7 @@ export interface IAppointment extends Document {
     cancelledAt?: Date;
     cancelledBy?: Types.ObjectId;
     cancellationReason?: string;
+    cancellationSource?: 'PATIENT' | 'PROFESSIONAL' | 'SYSTEM';
     isRecurring: boolean;
     recurringPattern?: {
         frequency: string;
@@ -68,6 +69,7 @@ const AppointmentSchema = new Schema<IAppointment>(
         cancelledAt: { type: Date },
         cancelledBy: { type: Schema.Types.ObjectId, ref: 'User' },
         cancellationReason: { type: String, maxlength: 500 },
+        cancellationSource: { type: String, enum: ['PATIENT', 'PROFESSIONAL', 'SYSTEM'] },
         isRecurring: { type: Boolean, default: false },
         recurringPattern: {
             frequency: { type: String, enum: ['weekly', 'biweekly', 'monthly'] },
@@ -98,6 +100,7 @@ AppointmentSchema.index({ tenantId: 1, patientId: 1, startAt: 1 });
 AppointmentSchema.index({ tenantId: 1, professionalId: 1, startAt: 1, status: 1 });
 AppointmentSchema.index({ 'recurringPattern.parentAppointmentId': 1 }); // Essential for Series modification
 AppointmentSchema.index({ tenantId: 1, status: 1 });
+AppointmentSchema.index({ tenantId: 1, patientId: 1, status: 1, cancelledAt: -1 }); // Phase 6: cancellation alert queries
 AppointmentSchema.index({ 'reminders.scheduledFor': 1, 'reminders.status': 1 });
 
 // Validate endAt > startAt

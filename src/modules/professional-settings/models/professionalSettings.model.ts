@@ -13,6 +13,8 @@ export interface IProfessionalSettings extends Document {
     defaultRules: {
         weeklyFrequencyPolicy: IWeeklyFrequencyPolicy;
         appointmentDurationMinutes: number;
+        cancellationAlertThreshold?: number;
+        cancellationAlertWindowDays?: number;
     };
     patientTypeOverrides: Map<string, { weeklyFrequencyPolicy: IWeeklyFrequencyPolicy }>;
 }
@@ -31,7 +33,9 @@ const ProfessionalSettingsSchema = new Schema<IProfessionalSettings>(
         professionalId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
         defaultRules: {
             weeklyFrequencyPolicy: { type: WeeklyFrequencyPolicySchema, required: true },
-            appointmentDurationMinutes: { type: Number, enum: [30, 45, 60, 90], default: 45 }
+            appointmentDurationMinutes: { type: Number, enum: [30, 45, 60, 90], default: 45 },
+            cancellationAlertThreshold: { type: Number, min: 1, default: null },
+            cancellationAlertWindowDays: { type: Number, min: 1, max: 365, default: 30 }
         },
         patientTypeOverrides: {
             type: Map,

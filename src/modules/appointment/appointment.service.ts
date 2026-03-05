@@ -4,6 +4,7 @@ import Appointment, { IAppointment } from './models/appointment.model';
 import Schedule, { ISchedule } from './models/schedule.model';
 import { NotFoundError, ConflictError, ValidationError, ForbiddenError } from '@shared/errors/AppError';
 import { parsePaginationQuery, buildPaginationResult, PaginationResult } from '@shared/utils/pagination';
+import { logAuditEvent } from '@shared/services/entityAuditLog.service';
 import { Types } from 'mongoose';
 
 export class AppointmentService {
@@ -52,7 +53,37 @@ export class AppointmentService {
 
     // ── Appointments ──
 
-    async create(tenantId: string, input: any, userId: Types.ObjectId): Promise<IAppointment> {
+    /**
+     * Check recent cancellations for a patient and return a warning if threshold exceeded.
+     * This does NOT block the creation — it just returns advisory data.
+     */
+    async checkCancellationHistory(
+        tenantId: string,
+        patientId: Types.ObjectId,
+        settings: any
+    ): Promise<{ warning: boolean; cancellationsLastPeriod: number } | null> {
+        const threshold = settings.defaultRules?.cancellationAlertThreshold;
+        const windowDays = settings.defaultRules?.cancellationAlertWindowDays || 30;
+
+        if (!threshold || threshold <= 0) return null;
+
+        const windowStart = new Date();
+        windowStart.setDate(windowStart.getDate() - windowDays);
+
+        const count = await Appointment.countDocuments({
+            tenantId,
+            patientId,
+            status: 'cancelled',
+            cancelledAt: { $gte: windowStart },
+        });
+
+        if (count >= threshold) {
+            return { warning: true, cancellationsLastPeriod: count };
+        }
+        return null;
+    }
+
+    async create(tenantId: string, input: any, userId: Types.ObjectId): Promise<IAppointment & { _cancellationWarning?: { warning: boolean; cancellationsLastPeriod: number } }> {
         const startAt = new Date(input.startAt || input.startTime);
 
         const patient = await Patient.findOne({ tenantId, _id: input.patientId }).lean() as any;
@@ -77,7 +108,10 @@ export class AppointmentService {
         });
         if (conflict) throw new ConflictError('Time slot conflicts with an existing appointment');
 
-        return Appointment.create({
+        // Check cancellation history (advisory, non-blocking)
+        const cancellationWarning = await this.checkCancellationHistory(tenantId, input.patientId, settings);
+
+        const appointment = await Appointment.create({
             tenantId,
             patientId: input.patientId,
             professionalId,
@@ -94,6 +128,14 @@ export class AppointmentService {
             recurringPattern: input.recurringPattern,
             createdBy: userId,
         });
+
+        // Fire-and-forget audit
+        logAuditEvent(tenantId, 'Appointment', appointment._id as Types.ObjectId, 'CREATE', userId);
+
+        // Attach warning as transient property (not persisted)
+        const result = appointment.toObject() as any;
+        if (cancellationWarning) result._cancellationWarning = cancellationWarning;
+        return result;
     }
 
     async getById(tenantId: string, id: string): Promise<IAppointment> {
@@ -127,6 +169,7 @@ export class AppointmentService {
         const appointment = await Appointment.findOne({ tenantId, _id: id });
         if (!appointment) throw new NotFoundError('Appointment');
 
+        const oldStatus = appointment.status;
         appointment.status = status;
         appointment.updatedBy = userId;
 
@@ -137,7 +180,60 @@ export class AppointmentService {
         }
 
         await appointment.save();
+
+        logAuditEvent(tenantId, 'Appointment', appointment._id as Types.ObjectId, 'UPDATE', userId, {
+            field: 'status', from: oldStatus, to: status,
+        });
+
         return appointment;
+    }
+
+    /**
+     * Clinical cancellation — NOT a soft delete.
+     * The appointment remains in the DB with status 'cancelled' and full traceability.
+     */
+    async cancelAppointment(
+        tenantId: string,
+        id: string,
+        userId: Types.ObjectId,
+        source: 'PATIENT' | 'PROFESSIONAL' | 'SYSTEM',
+        reason?: string
+    ): Promise<IAppointment> {
+        const appointment = await Appointment.findOne({ tenantId, _id: id });
+        if (!appointment) throw new NotFoundError('Appointment');
+
+        if (['completed', 'cancelled'].includes(appointment.status)) {
+            throw new ValidationError('Cannot cancel a completed or already cancelled appointment');
+        }
+
+        const oldStatus = appointment.status;
+        appointment.status = 'cancelled';
+        appointment.cancelledAt = new Date();
+        appointment.cancelledBy = userId;
+        appointment.cancellationSource = source;
+        if (reason) appointment.cancellationReason = reason;
+        appointment.updatedBy = userId;
+
+        await appointment.save();
+
+        logAuditEvent(tenantId, 'Appointment', appointment._id as Types.ObjectId, 'CANCEL', userId, {
+            field: 'status', from: oldStatus, to: 'cancelled', source, reason,
+        });
+
+        return appointment;
+    }
+
+    /**
+     * Administrative deletion — uses softDelete plugin.
+     * Sets isDeleted=true, deletedAt, deletedBy. Document excluded from future queries.
+     */
+    async deleteAppointment(tenantId: string, id: string, userId: Types.ObjectId): Promise<void> {
+        const appointment = await Appointment.findOne({ tenantId, _id: id });
+        if (!appointment) throw new NotFoundError('Appointment');
+
+        await (appointment as any).softDelete(userId.toString());
+
+        logAuditEvent(tenantId, 'Appointment', appointment._id as Types.ObjectId, 'DELETE', userId);
     }
 
     async update(tenantId: string, id: string, input: any, userId: Types.ObjectId): Promise<IAppointment> {
@@ -170,6 +266,7 @@ export class AppointmentService {
             throw new ValidationError('Cannot modify a completed or cancelled appointment');
         }
 
+        const oldStartAt = appointment.startAt;
         const startAt = new Date(newStartUTC);
         const durationMins = appointment.duration;
         const endAt = new Date(startAt.getTime() + durationMins * 60000);
@@ -197,6 +294,11 @@ export class AppointmentService {
         appointment.updatedBy = userId;
 
         await appointment.save();
+
+        logAuditEvent(tenantId, 'Appointment', appointment._id as Types.ObjectId, 'UPDATE', userId, {
+            field: 'schedule', from: oldStartAt.toISOString(), to: startAt.toISOString(),
+        });
+
         return appointment;
     }
 

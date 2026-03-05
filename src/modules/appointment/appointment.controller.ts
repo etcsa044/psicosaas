@@ -42,10 +42,28 @@ export class AppointmentController {
         } catch (error) { next(error); }
     }
 
+    async cancel(req: IAuthRequest, res: Response, next: NextFunction) {
+        try {
+            const appointment = await appointmentService.cancelAppointment(
+                req.tenantId!,
+                req.params.id as string,
+                req.user!._id,
+                req.body?.source || 'PROFESSIONAL',
+                req.body?.reason
+            );
+            sendSuccess(res, appointment);
+        } catch (error) { next(error); }
+    }
+
     async delete(req: IAuthRequest, res: Response, next: NextFunction) {
         try {
-            await appointmentService.updateStatus(
-                req.tenantId!, req.params.id as string, 'cancelled', req.user!._id, req.body?.reason || 'Deleted by user'
+            // Clinical cancellation (status → cancelled), NOT soft delete
+            await appointmentService.cancelAppointment(
+                req.tenantId!,
+                req.params.id as string,
+                req.user!._id,
+                req.body?.source || 'PROFESSIONAL',
+                req.body?.reason || 'Cancelled by user'
             );
             sendSuccess(res, { success: true });
         } catch (error) { next(error); }

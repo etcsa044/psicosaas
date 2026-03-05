@@ -12,6 +12,7 @@ import { AppointmentPopover } from './AppointmentPopover';
 import { ConflictModal } from './ConflictModal';
 import { Slot } from '../types/agenda.types';
 import { useState } from 'react';
+import { PatientSelectModal } from './PatientSelectModal';
 import axios from 'axios';
 
 // Mock patient array using the seeded Dummy Patient ID
@@ -29,7 +30,9 @@ export function AgendaDashboard() {
     const { mutateAsync: createMutateAsync } = useCreateAppointment();
     const rescheduleMutation = useRescheduleAppointment();
 
+    const [sidebarSearchTerm, setSidebarSearchTerm] = useState('');
     const [selectedAppointment, setSelectedAppointment] = useState<Slot | null>(null);
+    const [creatingSlot, setCreatingSlot] = useState<Slot | null>(null);
     const [conflictError, setConflictError] = useState<{
         type: 'alert' | 'block';
         message: string;
@@ -52,6 +55,13 @@ export function AgendaDashboard() {
         timeZone: 'UTC'
     }).format(new Date(currentWeekStart));
     const title = monthYear.charAt(0).toUpperCase() + monthYear.slice(1);
+
+    const filteredSidebarPatients = patients.filter(
+        (p) =>
+            p.firstName.toLowerCase().includes(sidebarSearchTerm.toLowerCase()) ||
+            p.lastName.toLowerCase().includes(sidebarSearchTerm.toLowerCase()) ||
+            p.email.toLowerCase().includes(sidebarSearchTerm.toLowerCase())
+    );
 
     const handleDragEnd = async (event: DragEndEvent) => {
         const { active, over } = event;
@@ -125,6 +135,37 @@ export function AgendaDashboard() {
         }
     };
 
+    const executeCreateFromClick = async (patientId: string, slot: Slot, override = false) => {
+        try {
+            await createMutateAsync({
+                patientId,
+                startAt: slot.startAt,
+                endAt: slot.endAt,
+                overrideFrequencyAlert: override
+            });
+            console.log('Click Booking Successful!');
+            setConflictError(null);
+        } catch (error: any) {
+            if (axios.isAxiosError(error) && error.response) {
+                const status = error.response.status;
+                const message = error.response.data.message || 'Error de validación clínica';
+                if (status === 409) {
+                    setConflictError({ type: 'alert', message, pendingAction: () => executeCreateFromClick(patientId, slot, true) });
+                } else if (status === 403) {
+                    setConflictError({ type: 'block', message });
+                } else {
+                    console.error('Click Booking failed', error);
+                    alert(`Error: ${message}`);
+                }
+            }
+        }
+    };
+
+    const handleEmptySlotClick = (slot: Slot) => {
+        // Open the patient selection modal
+        setCreatingSlot(slot);
+    };
+
     return (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
@@ -135,13 +176,21 @@ export function AgendaDashboard() {
                         <input
                             type="search"
                             placeholder="Buscar paciente..."
+                            value={sidebarSearchTerm}
+                            onChange={(e) => setSidebarSearchTerm(e.target.value)}
                             className="mt-2 w-full px-3 py-2 bg-gray-100 dark:bg-gray-900 border-gray-200 dark:border-gray-700 rounded-md text-sm focus:border-indigo-500 focus:bg-white focus:ring-0"
                         />
                     </div>
                     <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-3">
-                        {patients.map(p => (
-                            <PatientDraggable key={p.id} patient={p} />
-                        ))}
+                        {filteredSidebarPatients.length === 0 ? (
+                            <div className="text-center py-8 text-gray-500 text-sm">
+                                No se encontraron pacientes
+                            </div>
+                        ) : (
+                            filteredSidebarPatients.map(p => (
+                                <PatientDraggable key={p.id} patient={p} />
+                            ))
+                        )}
                     </div>
                 </aside>
 
@@ -208,6 +257,7 @@ export function AgendaDashboard() {
                                                             key={sIdx}
                                                             slot={slot}
                                                             onAppointmentClick={(s) => setSelectedAppointment(s)}
+                                                            onEmptySlotClick={handleEmptySlotClick}
                                                         />
                                                     ))
                                                 )}
@@ -235,6 +285,17 @@ export function AgendaDashboard() {
                         setConflictError(null);
                     }}
                     onCancel={() => setConflictError(null)}
+                />
+            )}
+            {creatingSlot && (
+                <PatientSelectModal
+                    slot={creatingSlot}
+                    patients={patients}
+                    onClose={() => setCreatingSlot(null)}
+                    onSelect={(patientId, slot) => {
+                        setCreatingSlot(null);
+                        executeCreateFromClick(patientId, slot);
+                    }}
                 />
             )}
         </DndContext>
