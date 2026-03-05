@@ -96,7 +96,7 @@ AppointmentSchema.plugin(auditPlugin);
 
 // Optimized Indexes according to DB Prompt Phase 2 Core Engine
 AppointmentSchema.index({ tenantId: 1, startAt: 1, endAt: 1 });
-AppointmentSchema.index({ tenantId: 1, patientId: 1, startAt: 1 });
+AppointmentSchema.index({ tenantId: 1, patientId: 1, startAt: -1 }); // Phase 7: patient history + stats (descending for recent-first)
 AppointmentSchema.index({ tenantId: 1, professionalId: 1, startAt: 1, status: 1 });
 AppointmentSchema.index({ 'recurringPattern.parentAppointmentId': 1 }); // Essential for Series modification
 AppointmentSchema.index({ tenantId: 1, status: 1 });

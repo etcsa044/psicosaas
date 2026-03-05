@@ -4,25 +4,30 @@ import { useAgendaUIStore } from '../stores/agendaUIStore';
 import { useWeeklyAgenda } from '../hooks/useWeeklyAgenda';
 import { useCreateAppointment } from '../hooks/useCreateAppointment';
 import { useRescheduleAppointment } from '../hooks/useRescheduleAppointment';
+import { usePatients, PatientListItem } from '../hooks/usePatients';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { DndContext, DragEndEvent, closestCenter, useSensor, useSensors, PointerSensor } from '@dnd-kit/core';
-import { PatientDraggable } from './PatientDraggable';
+import { PatientDraggable, DraggablePatient } from './PatientDraggable';
 import { SlotDroppable } from './SlotDroppable';
 import { AppointmentPopover } from './AppointmentPopover';
 import { ConflictModal } from './ConflictModal';
 import { Slot } from '../types/agenda.types';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { PatientSelectModal } from './PatientSelectModal';
+import { useDebounce } from '../../../hooks';
 import axios from 'axios';
 
-// Mock patient array using the seeded Dummy Patient ID
-const patients = [
-    { id: "69a46808e10d5e2e14350cd5", firstName: "Juan", lastName: "Pérez", email: "juan@demo.com" },
-    { id: "69a46808e10d5e2e14350cd6", firstName: "María", lastName: "Gómez", email: "maria@demo.com" },
-    { id: "69a46808e10d5e2e14350cd7", firstName: "Carlos", lastName: "López", email: "carlos@demo.com" },
-    { id: "69a46808e10d5e2e14350cd8", firstName: "Ana", lastName: "Martínez", email: "ana@demo.com" },
-    { id: "69a46808e10d5e2e14350cd9", firstName: "Pedro", lastName: "García", email: "pedro@demo.com" }
-];
+// Map API patient to draggable flat shape
+function toDraggable(p: PatientListItem): DraggablePatient {
+    return {
+        id: p._id,
+        firstName: p.personalInfo.firstName,
+        lastName: p.personalInfo.lastName,
+        email: p.personalInfo.email,
+        phone: p.personalInfo.phone,
+        patientType: p.patientType,
+    };
+}
 
 export function AgendaDashboard() {
     const { currentWeekStart, nextWeek, prevWeek } = useAgendaUIStore();
@@ -31,6 +36,14 @@ export function AgendaDashboard() {
     const rescheduleMutation = useRescheduleAppointment();
 
     const [sidebarSearchTerm, setSidebarSearchTerm] = useState('');
+    const debouncedSearch = useDebounce(sidebarSearchTerm, 300);
+    const { data: patientsData, isLoading: patientsLoading } = usePatients(debouncedSearch);
+
+    const sidebarPatients = useMemo(
+        () => (patientsData?.data || []).map(toDraggable),
+        [patientsData]
+    );
+
     const [selectedAppointment, setSelectedAppointment] = useState<Slot | null>(null);
     const [creatingSlot, setCreatingSlot] = useState<Slot | null>(null);
     const [conflictError, setConflictError] = useState<{
@@ -43,25 +56,18 @@ export function AgendaDashboard() {
     const sensors = useSensors(
         useSensor(PointerSensor, {
             activationConstraint: {
-                distance: 8, // Require 8px movement before dragging
+                distance: 8,
             },
         })
     );
 
-    // Format header date (e.g. "Febrero 2026") based on the current week start
+    // Format header date
     const monthYear = new Intl.DateTimeFormat('es-AR', {
         month: 'long',
         year: 'numeric',
         timeZone: 'UTC'
     }).format(new Date(currentWeekStart));
     const title = monthYear.charAt(0).toUpperCase() + monthYear.slice(1);
-
-    const filteredSidebarPatients = patients.filter(
-        (p) =>
-            p.firstName.toLowerCase().includes(sidebarSearchTerm.toLowerCase()) ||
-            p.lastName.toLowerCase().includes(sidebarSearchTerm.toLowerCase()) ||
-            p.email.toLowerCase().includes(sidebarSearchTerm.toLowerCase())
-    );
 
     const handleDragEnd = async (event: DragEndEvent) => {
         const { active, over } = event;
@@ -182,12 +188,16 @@ export function AgendaDashboard() {
                         />
                     </div>
                     <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-3">
-                        {filteredSidebarPatients.length === 0 ? (
+                        {patientsLoading ? (
+                            <div className="flex items-center justify-center py-8">
+                                <Loader2 className="animate-spin w-5 h-5 text-indigo-500" />
+                            </div>
+                        ) : sidebarPatients.length === 0 ? (
                             <div className="text-center py-8 text-gray-500 text-sm">
-                                No se encontraron pacientes
+                                {sidebarSearchTerm ? 'No se encontraron pacientes' : 'No hay pacientes registrados'}
                             </div>
                         ) : (
-                            filteredSidebarPatients.map(p => (
+                            sidebarPatients.map(p => (
                                 <PatientDraggable key={p.id} patient={p} />
                             ))
                         )}
@@ -290,7 +300,6 @@ export function AgendaDashboard() {
             {creatingSlot && (
                 <PatientSelectModal
                     slot={creatingSlot}
-                    patients={patients}
                     onClose={() => setCreatingSlot(null)}
                     onSelect={(patientId, slot) => {
                         setCreatingSlot(null);

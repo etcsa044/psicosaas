@@ -15,7 +15,7 @@ const EntityAuditLogSchema = new Schema<IEntityAuditLog>(
         tenantId: { type: String, required: true },
         entityType: {
             type: String,
-            enum: ['Appointment'], // Extensible: add 'Patient', 'ClinicalEntry', etc.
+            enum: ['Appointment', 'Patient'], // Extensible: add 'ClinicalEntry', etc.
             required: true,
         },
         entityId: { type: Schema.Types.ObjectId, required: true },

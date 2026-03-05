@@ -38,6 +38,20 @@ export class PatientController {
             sendNoContent(res);
         } catch (error) { next(error); }
     }
+
+    async getAppointmentHistory(req: IAuthRequest, res: Response, next: NextFunction) {
+        try {
+            const result = await patientService.getAppointmentHistory(req.tenantId!, req.params.id as string, req.query);
+            sendSuccess(res, result);
+        } catch (error) { next(error); }
+    }
+
+    async getCancellationStats(req: IAuthRequest, res: Response, next: NextFunction) {
+        try {
+            const stats = await patientService.getCancellationStats(req.tenantId!, req.params.id as string);
+            sendSuccess(res, stats);
+        } catch (error) { next(error); }
+    }
 }
 
 export const patientController = new PatientController();
