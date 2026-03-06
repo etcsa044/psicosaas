@@ -1,11 +1,11 @@
 import { Metadata } from 'next';
-import FeedbackPage from '@/features/feedback/components/FeedbackPage';
+import AdminFeedbackDashboard from '@/features/feedback/components/AdminFeedbackDashboard';
 
 export const metadata: Metadata = {
-    title: 'Feedback - PsicoSaaS',
-    description: 'Envía tu feedback para mejorar el sistema',
+    title: 'Bandeja de Feedback - PsicoSaaS',
+    description: 'Visualiza el feedback enviado por los usuarios',
 };
 
 export default function FeedbackRoutePage() {
-    return <FeedbackPage />;
+    return <AdminFeedbackDashboard />;
 }
