@@ -24,9 +24,10 @@ export function OccupiedSlot({ slot, onClick }: OccupiedSlotProps) {
     const startHour = new Date(slot.startAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
     const endHour = new Date(slot.endAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
 
-    let typeColor = 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200';
-    if (slot.patientType === 'intensive') typeColor = 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200';
-    if (slot.patientType?.toLowerCase() === 'premium') typeColor = 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200';
+    let typeColor = 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200'; // Semanal / Default
+    if (slot.patientType === 'quincenal') typeColor = 'bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-200';
+    if (slot.patientType === 'mensual') typeColor = 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200';
+    if (slot.patientType === 'personalizado') typeColor = 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200';
 
     return (
         <div

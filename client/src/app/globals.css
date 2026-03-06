@@ -3,9 +3,7 @@
 /* ── Design Tokens (CSS Custom Properties) ── */
 :root {
     /* Default palette: Profesional Azul */
-    --color-primary: #2563EB;
-    --color-primary-light: #3B82F6;
-    --color-accent: #60A5FA;
+    /* Base variables that depend on the primary color */
     --color-bg: #F8FAFC;
     --color-bg-dark: #0F172A;
     --color-surface: #FFFFFF;
@@ -19,7 +17,39 @@
     --color-success: #10B981;
     --color-warning: #F59E0B;
     --color-error: #EF4444;
+}
 
+/* ── Theming Palettes ── */
+
+/* Blue (Default) */
+:root[data-theme="blue"] {
+    --color-primary: #2563EB; /* blue-600 */
+    --color-primary-light: #3B82F6; /* blue-500 */
+    --color-accent: #60A5FA; /* blue-400 */
+}
+
+/* Rose */
+:root[data-theme="rose"] {
+    --color-primary: #E11D48; /* rose-600 */
+    --color-primary-light: #F43F5E; /* rose-500 */
+    --color-accent: #FB7185; /* rose-400 */
+}
+
+/* Violet */
+:root[data-theme="violet"] {
+    --color-primary: #7C3AED; /* violet-600 */
+    --color-primary-light: #8B5CF6; /* violet-500 */
+    --color-accent: #A78BFA; /* violet-400 */
+}
+
+/* Teal */
+:root[data-theme="teal"] {
+    --color-primary: #0D9488; /* teal-600 */
+    --color-primary-light: #14B8A6; /* teal-500 */
+    --color-accent: #2DD4BF; /* teal-400 */
+}
+
+:root {
     /* Font */
     --font-sans: var(--font-inter), system-ui, -apple-system, sans-serif;
 

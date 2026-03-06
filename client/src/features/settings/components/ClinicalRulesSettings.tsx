@@ -263,7 +263,7 @@ export default function ClinicalRulesSettings() {
                         <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Nueva Excepción</h3>
                         <div className="mb-6">
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                Tipo de Paciente (ej: premium, intensivo)
+                                Tipo de Paciente (ej: mensual, personalizado)
                             </label>
                             <input
                                 autoFocus

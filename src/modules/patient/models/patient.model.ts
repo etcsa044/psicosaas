@@ -43,8 +43,8 @@ const PatientSchema = new Schema<IPatient>(
     {
         patientType: {
             type: String,
-            enum: ['regular', 'intensive', 'vip'],
-            default: 'regular',
+            enum: ['semanal', 'quincenal', 'mensual', 'personalizado'],
+            default: 'semanal',
         },
         personalInfo: {
             firstName: { type: String, required: true, maxlength: 100, trim: true },

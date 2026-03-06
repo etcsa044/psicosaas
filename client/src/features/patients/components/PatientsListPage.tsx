@@ -6,6 +6,8 @@ import { api } from '@/lib/axios';
 import { Search, Trash2, Clock, Edit2 } from 'lucide-react';
 import { useDebounce } from '@/hooks/useDebounce';
 import toast from 'react-hot-toast';
+import PatientEditModal from './PatientEditModal';
+import PatientHistoryModal from './PatientHistoryModal';
 
 interface PatientRow {
     _id: string;
@@ -40,6 +42,9 @@ export default function PatientsListPage() {
     const { data, isLoading, isError } = usePatientsFull(debouncedSearch);
 
     const patients = data?.data || [];
+
+    const [editingPatient, setEditingPatient] = useState<PatientRow | null>(null);
+    const [historyPatient, setHistoryPatient] = useState<PatientRow | null>(null);
 
     const handleDelete = async (id: string, name: string) => {
         if (!confirm(`¿Estás seguro de eliminar a ${name}?`)) return;
@@ -126,8 +131,8 @@ export default function PatientsListPage() {
                                         </td>
                                         <td className="px-6 py-4 hidden lg:table-cell">
                                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${p.status === 'active'
-                                                    ? 'bg-green-100 text-green-700 dark:bg-green-500/10 dark:text-green-400'
-                                                    : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
+                                                ? 'bg-green-100 text-green-700 dark:bg-green-500/10 dark:text-green-400'
+                                                : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
                                                 }`}>
                                                 {p.status === 'active' ? 'Activo' : p.status}
                                             </span>
@@ -136,12 +141,14 @@ export default function PatientsListPage() {
                                             <div className="flex items-center justify-end gap-1">
                                                 <button
                                                     title="Ver historial"
+                                                    onClick={() => setHistoryPatient(p)}
                                                     className="p-2 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                                                 >
                                                     <Clock size={16} />
                                                 </button>
                                                 <button
                                                     title="Editar"
+                                                    onClick={() => setEditingPatient(p)}
                                                     className="p-2 text-gray-400 hover:text-amber-600 dark:hover:text-amber-400 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                                                 >
                                                     <Edit2 size={16} />
@@ -161,6 +168,31 @@ export default function PatientsListPage() {
                         </table>
                     </div>
                 </div>
+            )}
+
+            {/* Modals */}
+            {editingPatient && (
+                <PatientEditModal
+                    isOpen={!!editingPatient}
+                    onClose={() => setEditingPatient(null)}
+                    patientId={editingPatient._id}
+                    initialData={{
+                        firstName: editingPatient.personalInfo.firstName,
+                        lastName: editingPatient.personalInfo.lastName,
+                        phone: editingPatient.personalInfo.phone,
+                        email: editingPatient.personalInfo.email,
+                        patientType: editingPatient.patientType,
+                    }}
+                />
+            )}
+
+            {historyPatient && (
+                <PatientHistoryModal
+                    isOpen={!!historyPatient}
+                    onClose={() => setHistoryPatient(null)}
+                    patientId={historyPatient._id}
+                    patientName={`${historyPatient.personalInfo.firstName} ${historyPatient.personalInfo.lastName}`}
+                />
             )}
         </div>
     );

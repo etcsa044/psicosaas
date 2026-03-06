@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/axios';
 import { Save, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import ThemeSettings from './ThemeSettings';
 
 interface SettingsData {
     defaultRules: {
@@ -100,6 +101,9 @@ export default function ProfessionalSettingsPage() {
             </div>
 
             <div className="space-y-8">
+                {/* Theme Section */}
+                <ThemeSettings />
+
                 {/* Agenda Section */}
                 <section className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6 shadow-sm">
                     <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">📅 Agenda</h2>

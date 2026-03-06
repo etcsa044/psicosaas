@@ -37,7 +37,7 @@ export function PatientDraggable({ patient }: { patient: DraggablePatient }) {
                 <p className="font-medium text-sm text-gray-900 dark:text-white truncate" title={`${patient.firstName} ${patient.lastName}`}>
                     {patient.firstName} {patient.lastName}
                 </p>
-                {patient.patientType && patient.patientType !== 'regular' && (
+                {patient.patientType && (
                     <span className="ml-2 text-[10px] px-1.5 py-0.5 bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 rounded-full uppercase font-bold">
                         {patient.patientType}
                     </span>

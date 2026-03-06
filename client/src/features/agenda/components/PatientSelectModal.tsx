@@ -78,7 +78,7 @@ export function PatientSelectModal({ slot, onSelect, onClose }: PatientSelectMod
                                             <p className="font-medium text-gray-900 dark:text-white">
                                                 {patient.personalInfo.firstName} {patient.personalInfo.lastName}
                                             </p>
-                                            {patient.patientType !== 'regular' && (
+                                            {patient.patientType && (
                                                 <span className="text-[10px] px-1.5 py-0.5 bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 rounded-full uppercase font-bold">
                                                     {patient.patientType}
                                                 </span>
