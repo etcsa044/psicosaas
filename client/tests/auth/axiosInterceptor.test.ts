@@ -43,9 +43,9 @@ describe('Axios Interceptor', () => {
             setAccessToken('my-access-token');
 
             // Check that the interceptor modifies the config
-            const config = { headers: {} as Record<string, string> };
-            const interceptor = api.interceptors.request.handlers[0];
-            const result = interceptor.fulfilled(config);
+            const config: any = { headers: {} };
+            const interceptor: any = api.interceptors.request.handlers![0];
+            const result: any = interceptor.fulfilled(config);
 
             expect(result.headers.Authorization).toBe('Bearer my-access-token');
         });
@@ -53,9 +53,9 @@ describe('Axios Interceptor', () => {
         it('should not add Authorization header when no token', async () => {
             setAccessToken(null);
 
-            const config = { headers: {} as Record<string, string> };
-            const interceptor = api.interceptors.request.handlers[0];
-            const result = interceptor.fulfilled(config);
+            const config: any = { headers: {} };
+            const interceptor: any = api.interceptors.request.handlers![0];
+            const result: any = interceptor.fulfilled(config);
 
             expect(result.headers.Authorization).toBeUndefined();
         });

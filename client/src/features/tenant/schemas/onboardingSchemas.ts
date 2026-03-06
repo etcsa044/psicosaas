@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const onboardingStep1Schema = z.object({
     nombrePublico: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
     country: z.enum(['AR', 'CL', 'MX', 'CO', 'ES', 'UY'] as const, {
-        errorMap: () => ({ message: 'Seleccioná un país válido' }),
+        message: 'Seleccioná un país válido'
     }),
 });
 

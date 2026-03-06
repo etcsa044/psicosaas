@@ -30,14 +30,14 @@ export function OnboardingForm() {
         trigger,
         formState: { errors },
     } = useForm<OnboardingFormData>({
-        resolver: (data, context, options) => {
+        resolver: (data: any, context: any, options: any) => {
             const schema =
                 step === 1
                     ? onboardingStep1Schema
                     : step === 2
                         ? onboardingStep2Schema
                         : onboardingStep3Schema;
-            return zodResolver(schema)(data, context, options);
+            return zodResolver(schema)(data, context, options) as any;
         },
         defaultValues: {
             country: 'AR',

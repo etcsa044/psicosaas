@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Suspense } from 'react';
 import { RegisterForm } from '@/features/auth/components/RegisterForm';
 
 export const metadata = {
@@ -18,7 +19,9 @@ export default function RegisterPage() {
                 </p>
             </div>
 
-            <RegisterForm />
+            <Suspense fallback={<div className="flex justify-center py-8"><span className="text-gray-500 text-sm animate-pulse">Cargando formulario...</span></div>}>
+                <RegisterForm />
+            </Suspense>
 
             <div className="mt-6 text-center">
                 <p className="text-sm text-gray-600 dark:text-gray-400">
