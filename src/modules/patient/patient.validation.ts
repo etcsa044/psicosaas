@@ -8,7 +8,7 @@ export const createPatientSchema = z.object({
         birthDate: z.string().datetime().optional(),
         gender: z.enum(['M', 'F', 'NB', 'other', 'undisclosed']).optional(),
         phone: z.string().min(1, 'Phone is required').trim(),
-        email: z.string().email().optional(),
+        email: z.string().email('Email is required and must be valid'),
         address: z
             .object({
                 street: z.string().max(200).optional(),
@@ -33,6 +33,7 @@ export const createPatientSchema = z.object({
         })
         .optional(),
     generalObservations: z.string().max(5000).optional(),
+    patientType: z.enum(['semanal', 'quincenal', 'mensual', 'personalizado']).optional(),
 });
 
 export const updatePatientSchema = createPatientSchema.partial();

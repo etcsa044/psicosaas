@@ -27,14 +27,14 @@ export const useTheme = create<ThemeState>()(
     )
 );
 
+import { useEffect } from 'react';
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const { theme, palette } = useTheme();
 
-    // Effect to apply theme (dark mode class)
-    if (typeof window !== 'undefined') {
+    useEffect(() => {
         const root = window.document.documentElement;
 
-        // Handle dark mode
         root.classList.remove('light', 'dark');
 
         if (theme === 'system') {
@@ -44,23 +44,23 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
             root.classList.add(theme);
         }
 
-        // Handle palette
         root.setAttribute('data-theme', palette);
-    }
 
-    // Watch for system theme changes if in system mode
-    if (typeof window !== 'undefined' && theme === 'system') {
-        window.matchMedia('(prefers-color-scheme: dark)').onchange = (e) => {
-            const root = window.document.documentElement;
-            if (e.matches) {
-                root.classList.add('dark');
-                root.classList.remove('light');
-            } else {
-                root.classList.add('light');
-                root.classList.remove('dark');
-            }
-        };
-    }
+        if (theme === 'system') {
+            const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+            const handleChange = (e: MediaQueryListEvent) => {
+                if (e.matches) {
+                    root.classList.add('dark');
+                    root.classList.remove('light');
+                } else {
+                    root.classList.add('light');
+                    root.classList.remove('dark');
+                }
+            };
+            mediaQuery.addEventListener('change', handleChange);
+            return () => mediaQuery.removeEventListener('change', handleChange);
+        }
+    }, [theme, palette]);
 
     return <>{children}</>;
 }

@@ -1,4 +1,11 @@
 @import "tailwindcss";
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+    --color-indigo-400: var(--color-accent);
+    --color-indigo-500: var(--color-primary-light);
+    --color-indigo-600: var(--color-primary);
+}
 
 /* ── Design Tokens (CSS Custom Properties) ── */
 :root {
@@ -23,30 +30,42 @@
 
 /* Blue (Default) */
 :root[data-theme="blue"] {
-    --color-primary: #2563EB; /* blue-600 */
-    --color-primary-light: #3B82F6; /* blue-500 */
-    --color-accent: #60A5FA; /* blue-400 */
+    --color-primary: #2563EB;
+    /* blue-600 */
+    --color-primary-light: #3B82F6;
+    /* blue-500 */
+    --color-accent: #60A5FA;
+    /* blue-400 */
 }
 
 /* Rose */
 :root[data-theme="rose"] {
-    --color-primary: #E11D48; /* rose-600 */
-    --color-primary-light: #F43F5E; /* rose-500 */
-    --color-accent: #FB7185; /* rose-400 */
+    --color-primary: #E11D48;
+    /* rose-600 */
+    --color-primary-light: #F43F5E;
+    /* rose-500 */
+    --color-accent: #FB7185;
+    /* rose-400 */
 }
 
 /* Violet */
 :root[data-theme="violet"] {
-    --color-primary: #7C3AED; /* violet-600 */
-    --color-primary-light: #8B5CF6; /* violet-500 */
-    --color-accent: #A78BFA; /* violet-400 */
+    --color-primary: #7C3AED;
+    /* violet-600 */
+    --color-primary-light: #8B5CF6;
+    /* violet-500 */
+    --color-accent: #A78BFA;
+    /* violet-400 */
 }
 
 /* Teal */
 :root[data-theme="teal"] {
-    --color-primary: #0D9488; /* teal-600 */
-    --color-primary-light: #14B8A6; /* teal-500 */
-    --color-accent: #2DD4BF; /* teal-400 */
+    --color-primary: #0D9488;
+    /* teal-600 */
+    --color-primary-light: #14B8A6;
+    /* teal-500 */
+    --color-accent: #2DD4BF;
+    /* teal-400 */
 }
 
 :root {

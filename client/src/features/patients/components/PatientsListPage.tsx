@@ -6,8 +6,7 @@ import { api } from '@/lib/axios';
 import { Search, Trash2, Clock, Edit2 } from 'lucide-react';
 import { useDebounce } from '@/hooks/useDebounce';
 import toast from 'react-hot-toast';
-import PatientEditModal from './PatientEditModal';
-import PatientHistoryModal from './PatientHistoryModal';
+import { useRouter } from 'next/navigation';
 
 interface PatientRow {
     _id: string;
@@ -43,14 +42,18 @@ export default function PatientsListPage() {
 
     const patients = data?.data || [];
 
-    const [editingPatient, setEditingPatient] = useState<PatientRow | null>(null);
-    const [historyPatient, setHistoryPatient] = useState<PatientRow | null>(null);
+    const router = useRouter();
+    const [deleteIntent, setDeleteIntent] = useState<{ id: string, name: string } | null>(null);
 
-    const handleDelete = async (id: string, name: string) => {
-        if (!confirm(`¿Estás seguro de eliminar a ${name}?`)) return;
+    const { refetch } = usePatientsFull(debouncedSearch);
+
+    const confirmDelete = async () => {
+        if (!deleteIntent) return;
         try {
-            await api.delete(`/patients/${id}`);
-            toast.success(`Paciente ${name} eliminado`);
+            await api.delete(`/patients/${deleteIntent.id}`);
+            toast.success(`Paciente ${deleteIntent.name} eliminado`);
+            setDeleteIntent(null);
+            refetch();
         } catch {
             toast.error('Error al eliminar paciente');
         }
@@ -112,7 +115,11 @@ export default function PatientsListPage() {
                             </thead>
                             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                                 {patients.map((p) => (
-                                    <tr key={p._id} className="hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors">
+                                    <tr
+                                        key={p._id}
+                                        onClick={() => router.push(`/patients/${p._id}`)}
+                                        className="hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors cursor-pointer"
+                                    >
                                         <td className="px-6 py-4">
                                             <span className="font-medium text-gray-900 dark:text-white">
                                                 {p.personalInfo.firstName} {p.personalInfo.lastName}
@@ -125,8 +132,11 @@ export default function PatientsListPage() {
                                             {p.personalInfo.email || '—'}
                                         </td>
                                         <td className="px-6 py-4 hidden lg:table-cell">
-                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400">
-                                                {p.patientType}
+                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400 capitalize">
+                                                {p.patientType === 'regular' ? 'semanal' :
+                                                    p.patientType === 'intensive' ? 'quincenal' :
+                                                        p.patientType === 'vip' ? 'mensual' :
+                                                            p.patientType}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 hidden lg:table-cell">
@@ -140,23 +150,22 @@ export default function PatientsListPage() {
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex items-center justify-end gap-1">
                                                 <button
-                                                    title="Ver historial"
-                                                    onClick={() => setHistoryPatient(p)}
-                                                    className="p-2 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                                                    title="Abrir Ficha Clínica"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        router.push(`/patients/${p._id}`);
+                                                    }}
+                                                    className="p-2 text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors font-medium text-sm flex gap-1 items-center"
                                                 >
-                                                    <Clock size={16} />
-                                                </button>
-                                                <button
-                                                    title="Editar"
-                                                    onClick={() => setEditingPatient(p)}
-                                                    className="p-2 text-gray-400 hover:text-amber-600 dark:hover:text-amber-400 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                                                >
-                                                    <Edit2 size={16} />
+                                                    Abrir Ficha
                                                 </button>
                                                 <button
                                                     title="Eliminar"
-                                                    onClick={() => handleDelete(p._id, `${p.personalInfo.firstName} ${p.personalInfo.lastName}`)}
-                                                    className="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setDeleteIntent({ id: p._id, name: `${p.personalInfo.firstName} ${p.personalInfo.lastName}` });
+                                                    }}
+                                                    className="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ml-2"
                                                 >
                                                     <Trash2 size={16} />
                                                 </button>
@@ -171,28 +180,34 @@ export default function PatientsListPage() {
             )}
 
             {/* Modals */}
-            {editingPatient && (
-                <PatientEditModal
-                    isOpen={!!editingPatient}
-                    onClose={() => setEditingPatient(null)}
-                    patientId={editingPatient._id}
-                    initialData={{
-                        firstName: editingPatient.personalInfo.firstName,
-                        lastName: editingPatient.personalInfo.lastName,
-                        phone: editingPatient.personalInfo.phone,
-                        email: editingPatient.personalInfo.email,
-                        patientType: editingPatient.patientType,
-                    }}
-                />
-            )}
 
-            {historyPatient && (
-                <PatientHistoryModal
-                    isOpen={!!historyPatient}
-                    onClose={() => setHistoryPatient(null)}
-                    patientId={historyPatient._id}
-                    patientName={`${historyPatient.personalInfo.firstName} ${historyPatient.personalInfo.lastName}`}
-                />
+            {deleteIntent && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/50" onClick={() => setDeleteIntent(null)} />
+                    <div className="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-sm p-6 text-center animate-fade-in">
+                        <div className="w-12 h-12 bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <Trash2 size={24} />
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Eliminar Paciente</h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+                            ¿Estás seguro que deseas eliminar a <strong>{deleteIntent.name}</strong>? Esta acción no se puede deshacer.
+                        </p>
+                        <div className="flex gap-3 justify-center">
+                            <button
+                                onClick={() => setDeleteIntent(null)}
+                                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={confirmDelete}
+                                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg shadow-sm transition-colors"
+                            >
+                                Sí, eliminar
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );
