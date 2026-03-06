@@ -17,6 +17,7 @@ import { PatientSelectModal } from './PatientSelectModal';
 import { QuickCreatePatientModal } from './QuickCreatePatientModal';
 import { DayView } from './DayView';
 import { MonthView } from './MonthView';
+import MobileAgendaView from './Mobile/MobileAgendaView';
 import { useDebounce } from '../../../hooks';
 import toast from 'react-hot-toast';
 import axios from 'axios';
@@ -252,8 +253,9 @@ export function AgendaDashboard() {
                 </aside>
 
                 {/* Main Content: Calendario Grid */}
-                <main className="flex-1 flex flex-col min-w-0 bg-white dark:bg-gray-900">
-                    <header className="h-16 flex-shrink-0 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between px-6 bg-white dark:bg-gray-900">
+                <main className="flex-1 flex flex-col min-w-0 bg-white dark:bg-gray-900 overflow-hidden relative">
+                    {/* Desktop Header */}
+                    <header className="hidden lg:flex h-16 flex-shrink-0 border-b border-gray-200 dark:border-gray-800 items-center justify-between px-6 bg-white dark:bg-gray-900">
                         <div className="flex items-center gap-4">
                             <button onClick={today} className="px-3 py-1.5 text-sm font-medium border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 transition">
                                 Hoy
@@ -293,7 +295,7 @@ export function AgendaDashboard() {
                         </button>
                     </header>
 
-                    <div className="flex-1 overflow-y-auto p-6 bg-gray-50 dark:bg-gray-900">
+                    <div className="flex-1 overflow-y-auto lg:p-6 bg-gray-50 dark:bg-gray-900">
                         {isLoading ? (
                             <div className="h-full flex flex-col items-center justify-center text-gray-500">
                                 <Loader2 className="animate-spin w-8 h-8 mb-4 text-indigo-500" />
@@ -304,52 +306,79 @@ export function AgendaDashboard() {
                                 <p className="font-semibold mb-2">Error cargando agenda</p>
                                 <p className="text-sm">{error instanceof Error ? error.message : 'Error desconocido'}</p>
                             </div>
-                        ) : viewMode === 'day' ? (
-                            <DayView
-                                dayAgenda={agenda?.days.find(d => d.date.toString().split('T')[0] === currentDate.split('T')[0]) || { date: currentDate, slots: [] }}
-                                onEmptySlotClick={handleEmptySlotClick}
-                                onAppointmentClick={(s) => setSelectedAppointment(s)}
-                            />
-                        ) : viewMode === 'month' ? (
-                            <MonthView agendaDays={agenda?.days} />
                         ) : (
-                            <div className="grid grid-cols-7 gap-4 min-h-full">
-                                {agenda?.days.map((day, idx) => {
-                                    const dateObj = new Date(day.date);
-                                    const dayName = new Intl.DateTimeFormat('es-AR', { weekday: 'short', timeZone: 'UTC' }).format(dateObj);
-                                    const dayNum = dateObj.getUTCDate();
-                                    const isToday = new Date().toISOString().split('T')[0] === day.date.split('T')[0];
+                            <>
+                                {/* Mobile View */}
+                                <div className="block lg:hidden h-full">
+                                    <MobileAgendaView
+                                        appointments={agenda?.days.flatMap(d => d.slots.filter(s => s.status !== 'available').map(s => ({
+                                            ...s,
+                                            startTime: s.startAt,
+                                            endTime: s.endAt,
+                                            patientName: s.patientName || 'Paciente',
+                                        }))) || []}
+                                        onNewTurno={(date) => {
+                                            const slot: Slot = { startAt: date.toISOString(), endAt: new Date(date.getTime() + 60 * 60000).toISOString(), status: 'available' };
+                                            handleEmptySlotClick(slot);
+                                        }}
+                                        onStatusChange={async (id, s) => {
+                                            // TODO trigger modal or reschedule api
+                                            console.log("Status change mobile for", id, s)
+                                        }}
+                                    />
+                                </div>
 
-                                    return (
-                                        <div key={idx} className="flex flex-col min-w-0">
-                                            <div className="text-center mb-4 pb-2 border-b border-gray-200 dark:border-gray-800">
-                                                <p className={`text-xs font-semibold uppercase ${isToday ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-500 dark:text-gray-400'}`}>
-                                                    {dayName}
-                                                </p>
-                                                <p className={`text-xl mt-1 ${isToday ? 'font-bold text-indigo-600 dark:text-indigo-400' : 'text-gray-900 dark:text-gray-100'}`}>
-                                                    {dayNum}
-                                                </p>
-                                            </div>
-                                            <div className="flex-1 space-y-2">
-                                                {day.slots.length === 0 ? (
-                                                    <div className="h-20 border border-dashed border-gray-300 dark:border-gray-700 rounded-lg flex items-center justify-center text-xs text-gray-400">
-                                                        Bloqueado
+                                {/* Desktop View */}
+                                <div className="hidden lg:block h-full">
+                                    {viewMode === 'day' ? (
+                                        <DayView
+                                            dayAgenda={agenda?.days.find(d => d.date.toString().split('T')[0] === currentDate.split('T')[0]) || { date: currentDate, slots: [] }}
+                                            onEmptySlotClick={handleEmptySlotClick}
+                                            onAppointmentClick={(s) => setSelectedAppointment(s)}
+                                        />
+                                    ) : viewMode === 'month' ? (
+                                        <MonthView agendaDays={agenda?.days} />
+                                    ) : (
+                                        <div className="grid grid-cols-7 gap-4 min-h-full">
+                                            {agenda?.days.map((day, idx) => {
+                                                const dateObj = new Date(day.date);
+                                                const dayName = new Intl.DateTimeFormat('es-AR', { weekday: 'short', timeZone: 'UTC' }).format(dateObj);
+                                                const dayNum = dateObj.getUTCDate();
+                                                const isToday = new Date().toISOString().split('T')[0] === day.date.split('T')[0];
+
+                                                return (
+                                                    <div key={idx} className="flex flex-col min-w-0">
+                                                        <div className="text-center mb-4 pb-2 border-b border-gray-200 dark:border-gray-800">
+                                                            <p className={`text-xs font-semibold uppercase ${isToday ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                                                                {dayName}
+                                                            </p>
+                                                            <p className={`text-xl mt-1 ${isToday ? 'font-bold text-indigo-600 dark:text-indigo-400' : 'text-gray-900 dark:text-gray-100'}`}>
+                                                                {dayNum}
+                                                            </p>
+                                                        </div>
+                                                        <div className="flex-1 space-y-2">
+                                                            {day.slots.length === 0 ? (
+                                                                <div className="h-20 border border-dashed border-gray-300 dark:border-gray-700 rounded-lg flex items-center justify-center text-xs text-gray-400">
+                                                                    Bloqueado
+                                                                </div>
+                                                            ) : (
+                                                                day.slots.map((slot, sIdx) => (
+                                                                    <SlotDroppable
+                                                                        key={sIdx}
+                                                                        slot={slot}
+                                                                        onAppointmentClick={(s) => setSelectedAppointment(s)}
+                                                                        onEmptySlotClick={handleEmptySlotClick}
+                                                                    />
+                                                                ))
+                                                            )}
+                                                        </div>
                                                     </div>
-                                                ) : (
-                                                    day.slots.map((slot, sIdx) => (
-                                                        <SlotDroppable
-                                                            key={sIdx}
-                                                            slot={slot}
-                                                            onAppointmentClick={(s) => setSelectedAppointment(s)}
-                                                            onEmptySlotClick={handleEmptySlotClick}
-                                                        />
-                                                    ))
-                                                )}
-                                            </div>
+                                                );
+                                            })}
                                         </div>
-                                    );
-                                })}
-                            </div>
+                                    )}
+                                </div>
+                            </>
                         )}
                     </div>
                 </main>

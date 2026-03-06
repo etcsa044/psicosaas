@@ -6,6 +6,8 @@ import { Calendar, Users, Settings, MessageSquare, LogOut, Menu, X } from 'lucid
 import { useState } from 'react';
 import { useAuthStore } from '@/features/auth/stores/authStore';
 import FeedbackWidget from '@/features/feedback/components/FeedbackWidget';
+import MobileNavbar from './components/MobileNavbar';
+import BottomSheetTurno from '@/features/agenda/components/Mobile/BottomSheetTurno';
 
 const navItems = [
     { href: '/dashboard', label: 'Agenda', icon: Calendar },
@@ -17,6 +19,7 @@ const navItems = [
 export default function ProfessionalLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [isMobileNewTurnoOpen, setIsMobileNewTurnoOpen] = useState(false);
     const user = useAuthStore((s) => s.user);
 
     const handleLogout = async () => {
@@ -32,20 +35,10 @@ export default function ProfessionalLayout({ children }: { children: React.React
 
     return (
         <div className="flex h-screen bg-gray-50 dark:bg-gray-950">
-            {/* Mobile overlay */}
-            {sidebarOpen && (
-                <div
-                    className="fixed inset-0 z-40 bg-black/50 lg:hidden"
-                    onClick={() => setSidebarOpen(false)}
-                />
-            )}
-
-            {/* Sidebar */}
+            {/* Desktop Sidebar (Hidden on Mobile) */}
             <aside className={`
-                fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800
-                transform transition-transform duration-200 ease-in-out
-                lg:relative lg:translate-x-0
-                ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+                hidden lg:flex fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800
+                flex-col h-full
             `}>
                 <div className="flex flex-col h-full">
                     {/* Logo / Brand */}
@@ -56,12 +49,6 @@ export default function ProfessionalLayout({ children }: { children: React.React
                             </div>
                             <span className="text-lg font-semibold text-gray-900 dark:text-white">PsicoSaaS</span>
                         </Link>
-                        <button
-                            onClick={() => setSidebarOpen(false)}
-                            className="lg:hidden text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                        >
-                            <X size={20} />
-                        </button>
                     </div>
 
                     {/* Navigation */}
@@ -115,18 +102,12 @@ export default function ProfessionalLayout({ children }: { children: React.React
                 </div>
             </aside>
 
-            {/* Main Content */}
-            <div className="flex-1 flex flex-col min-w-0">
+            {/* Main Content (Shifted on Desktop, Full on Mobile) */}
+            <div className="flex-1 flex flex-col min-w-0 lg:ml-64 relative pb-16 lg:pb-0">
                 {/* Top Bar (mobile) */}
-                <header className="lg:hidden flex items-center h-16 px-4 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
-                    <button
-                        onClick={() => setSidebarOpen(true)}
-                        className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                    >
-                        <Menu size={24} />
-                    </button>
-                    <div className="ml-4 flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                <header className="lg:hidden flex items-center justify-between h-16 px-4 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 sticky top-0 z-30">
+                    <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
                             <span className="text-white font-bold text-xs">PS</span>
                         </div>
                         <span className="text-base font-semibold text-gray-900 dark:text-white">PsicoSaaS</span>
@@ -137,10 +118,20 @@ export default function ProfessionalLayout({ children }: { children: React.React
                 <main className="flex-1 overflow-y-auto">
                     {children}
                 </main>
+
+                <MobileNavbar onNewTurno={() => setIsMobileNewTurnoOpen(true)} />
             </div>
 
-            {/* Global Feedback Widget */}
+            {/* Global Modals & Widgets */}
             <FeedbackWidget />
+            <BottomSheetTurno
+                open={isMobileNewTurnoOpen}
+                onOpenChange={setIsMobileNewTurnoOpen}
+                onConfirm={async (data) => {
+                    console.log('Mobile Turno Data:', data);
+                    // TODO: call actual create appointment hook
+                }}
+            />
         </div>
     );
 }
