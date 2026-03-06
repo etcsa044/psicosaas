@@ -21,6 +21,7 @@ import subscriptionRoutes from '@modules/subscription/subscription.routes';
 import metricsRoutes from '@modules/metrics/metrics.routes';
 import botWebhookRoutes from '@modules/bot/bot.routes';
 import professionalSettingsRoutes from '@modules/professional-settings/professionalSettings.routes';
+import feedbackRoutes from '@modules/feedback/feedback.routes';
 
 const app = express();
 
@@ -81,6 +82,7 @@ app.use('/api/subscription', subscriptionRoutes);
 app.use('/api/metrics', metricsRoutes);
 app.use('/api/bot', botWebhookRoutes);
 app.use('/api/professional-settings', professionalSettingsRoutes);
+app.use('/api/feedback', feedbackRoutes);
 
 // ── 404 handler ──
 app.use((_req, res) => {
