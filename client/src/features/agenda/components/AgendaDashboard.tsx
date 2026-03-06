@@ -224,7 +224,7 @@ export function AgendaDashboard() {
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
                 {/* Sidebar Left: Pacientes */}
-                <aside className="w-80 flex-shrink-0 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 flex flex-col">
+                <aside className="w-80 flex-shrink-0 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 hidden lg:flex flex-col">
                     <div className="p-4 border-b border-gray-200 dark:border-gray-700">
                         <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Pacientes</h2>
                         <input
