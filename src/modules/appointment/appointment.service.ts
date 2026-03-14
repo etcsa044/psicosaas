@@ -1,4 +1,5 @@
 import Patient from '@modules/patient/models/patient.model';
+import { patientService } from '@modules/patient/patient.service';
 import { professionalSettingsService } from '@modules/professional-settings/professionalSettings.service';
 import Appointment, { IAppointment } from './models/appointment.model';
 import Schedule, { ISchedule } from './models/schedule.model';
@@ -247,6 +248,9 @@ export class AppointmentService {
         if (cancellationWarning) {
             result._cancellationWarning = cancellationWarning;
         }
+
+        // Fire-and-forget: compute new patient reliability score based on this cancellation
+        patientService.computeReliabilityScore(tenantId, appointment.patientId.toString()).catch(console.error);
 
         return result;
     }

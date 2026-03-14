@@ -33,6 +33,8 @@ export interface IPatient extends Document {
         memberNumber?: string;
     };
     generalObservations?: string;
+    reliabilityScore?: 'reliable' | 'moderate_risk' | 'frequent_canceller';
+    reliabilityComputedAt?: Date;
     isDeleted: boolean;
     deletedAt?: Date;
     createdBy?: Types.ObjectId;
@@ -77,6 +79,12 @@ const PatientSchema = new Schema<IPatient>(
             memberNumber: { type: String },
         },
         generalObservations: { type: String, maxlength: 5000 },
+        reliabilityScore: {
+            type: String,
+            enum: ['reliable', 'moderate_risk', 'frequent_canceller'],
+            default: 'reliable',
+        },
+        reliabilityComputedAt: { type: Date },
     },
     { timestamps: true }
 );

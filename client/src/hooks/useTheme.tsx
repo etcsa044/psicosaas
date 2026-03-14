@@ -4,7 +4,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 type Theme = 'light' | 'dark' | 'system';
-type Palette = 'blue' | 'rose' | 'violet' | 'teal';
+type Palette = 'blue' | 'rose' | 'violet' | 'teal' | 'pastel-rose' | 'pastel-lavender';
 
 interface ThemeState {
     theme: Theme;

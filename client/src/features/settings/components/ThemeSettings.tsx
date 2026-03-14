@@ -17,6 +17,8 @@ export default function ThemeSettings() {
         { id: 'rose', label: 'Rosa', color: 'bg-rose-600' },
         { id: 'violet', label: 'Violeta', color: 'bg-violet-600' },
         { id: 'teal', label: 'Esmeralda', color: 'bg-teal-600' },
+        { id: 'pastel-rose', label: 'Rosa Pastel', color: 'bg-pink-400' },
+        { id: 'pastel-lavender', label: 'Lavanda Suave', color: 'bg-violet-400' },
     ] as const;
 
     return (
@@ -35,8 +37,8 @@ export default function ThemeSettings() {
                                 key={id}
                                 onClick={() => setTheme(id)}
                                 className={`flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all ${theme === id
-                                        ? 'border-primary bg-primary/5 text-primary'
-                                        : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 text-gray-600 dark:text-gray-400'
+                                    ? 'border-primary bg-primary/5 text-primary'
+                                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 text-gray-600 dark:text-gray-400'
                                     }`}
                             >
                                 <Icon className="w-8 h-8" />

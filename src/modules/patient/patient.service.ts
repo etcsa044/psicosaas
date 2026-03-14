@@ -175,6 +175,33 @@ export class PatientService {
             name: `${patient.personalInfo.firstName} ${patient.personalInfo.lastName}`,
         };
     }
+
+    /**
+     * Compute and persist patient reliability score based on cancellation history.
+     * Called fire-and-forget after appointment cancellation.
+     * - < 2 cancellations in 6 months → reliable
+     * - 2-4 → moderate_risk
+     * - > 4 → frequent_canceller
+     */
+    async computeReliabilityScore(tenantId: string, patientId: string): Promise<void> {
+        try {
+            const stats = await this.getCancellationStats(tenantId, patientId);
+            let score: 'reliable' | 'moderate_risk' | 'frequent_canceller' = 'reliable';
+
+            if (stats.last6Months > 4) {
+                score = 'frequent_canceller';
+            } else if (stats.last6Months >= 2) {
+                score = 'moderate_risk';
+            }
+
+            await Patient.findOneAndUpdate(
+                { tenantId, _id: patientId },
+                { $set: { reliabilityScore: score, reliabilityComputedAt: new Date() } }
+            );
+        } catch {
+            // Fire-and-forget: don't crash the cancel flow
+        }
+    }
 }
 
 export const patientService = new PatientService();
