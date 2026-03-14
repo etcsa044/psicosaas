@@ -7,6 +7,7 @@ import { Search, Trash2, Clock, Edit2 } from 'lucide-react';
 import { useDebounce } from '@/hooks/useDebounce';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 
 interface PatientRow {
     _id: string;
@@ -44,18 +45,23 @@ export default function PatientsListPage() {
 
     const router = useRouter();
     const [deleteIntent, setDeleteIntent] = useState<{ id: string, name: string } | null>(null);
+    const [deleteLoading, setDeleteLoading] = useState(false);
 
     const { refetch } = usePatientsFull(debouncedSearch);
 
     const confirmDelete = async () => {
         if (!deleteIntent) return;
+        setDeleteLoading(true);
         try {
             await api.delete(`/patients/${deleteIntent.id}`);
             toast.success(`Paciente ${deleteIntent.name} eliminado`);
             setDeleteIntent(null);
             refetch();
-        } catch {
-            toast.error('Error al eliminar paciente');
+        } catch (err: any) {
+            const msg = err?.response?.data?.message || 'Error al eliminar paciente';
+            toast.error(msg);
+        } finally {
+            setDeleteLoading(false);
         }
     };
 
@@ -181,34 +187,17 @@ export default function PatientsListPage() {
 
             {/* Modals */}
 
-            {deleteIntent && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-black/50" onClick={() => setDeleteIntent(null)} />
-                    <div className="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-sm p-6 text-center animate-fade-in">
-                        <div className="w-12 h-12 bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <Trash2 size={24} />
-                        </div>
-                        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Eliminar Paciente</h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-                            ¿Estás seguro que deseas eliminar a <strong>{deleteIntent.name}</strong>? Esta acción no se puede deshacer.
-                        </p>
-                        <div className="flex gap-3 justify-center">
-                            <button
-                                onClick={() => setDeleteIntent(null)}
-                                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg transition-colors"
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                onClick={confirmDelete}
-                                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg shadow-sm transition-colors"
-                            >
-                                Sí, eliminar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <ConfirmDialog
+                open={!!deleteIntent}
+                onOpenChange={(open) => { if (!open) setDeleteIntent(null); }}
+                title="Eliminar Paciente"
+                description={<>¿Estás seguro que deseas eliminar a <strong>{deleteIntent?.name}</strong>? Esta acción no se puede deshacer.</>}
+                confirmLabel="Eliminar paciente"
+                cancelLabel="Cancelar"
+                variant="destructive"
+                onConfirm={confirmDelete}
+                loading={deleteLoading}
+            />
         </div>
     );
 }

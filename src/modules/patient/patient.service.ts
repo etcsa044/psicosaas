@@ -1,22 +1,29 @@
 import Patient, { IPatient } from './models/patient.model';
 import Appointment from '../appointment/models/appointment.model';
 import { CreatePatientInput, UpdatePatientInput } from './patient.validation';
-import { NotFoundError } from '@shared/errors/AppError';
+import { NotFoundError, ConflictError } from '@shared/errors/AppError';
 import { parsePaginationQuery, buildPaginationResult, PaginationResult } from '@shared/utils/pagination';
 import { logAuditEvent } from '@shared/services/entityAuditLog.service';
 import { Types } from 'mongoose';
 
 export class PatientService {
     async create(tenantId: string, input: CreatePatientInput, userId: Types.ObjectId): Promise<IPatient> {
-        const patient = await Patient.create({
-            tenantId,
-            ...input,
-            createdBy: userId,
-        });
+        try {
+            const patient = await Patient.create({
+                tenantId,
+                ...input,
+                createdBy: userId,
+            });
 
-        logAuditEvent(tenantId, 'Patient', patient._id as Types.ObjectId, 'CREATE', userId);
+            logAuditEvent(tenantId, 'Patient', patient._id as Types.ObjectId, 'CREATE', userId);
 
-        return patient;
+            return patient;
+        } catch (err: any) {
+            if (err.code === 11000 && err.keyPattern?.['personalInfo.email']) {
+                throw new ConflictError('Este email ya está registrado para otro paciente.');
+            }
+            throw err;
+        }
     }
 
     async getById(tenantId: string, patientId: string): Promise<IPatient> {
@@ -66,8 +73,21 @@ export class PatientService {
     async softDelete(tenantId: string, patientId: string, userId: Types.ObjectId): Promise<void> {
         const patient = await Patient.findOne({ tenantId, _id: patientId });
         if (!patient) throw new NotFoundError('Patient');
-        await (patient as any).softDelete(userId.toString());
 
+        // Guard: block deletion if patient has future appointments (timezone-safe 5min buffer)
+        const futureAppointments = await Appointment.countDocuments({
+            tenantId,
+            patientId: new Types.ObjectId(patientId),
+            startAt: { $gt: new Date(Date.now() - 5 * 60 * 1000) },
+            status: { $in: ['scheduled', 'confirmed'] },
+        });
+        if (futureAppointments > 0) {
+            throw new ConflictError(
+                `No se puede eliminar: el paciente tiene ${futureAppointments} turno(s) futuro(s) agendado(s). Cancelalos primero.`
+            );
+        }
+
+        await (patient as any).softDelete(userId.toString());
         logAuditEvent(tenantId, 'Patient', patient._id as Types.ObjectId, 'DELETE', userId);
     }
 
