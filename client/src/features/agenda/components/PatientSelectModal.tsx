@@ -6,7 +6,7 @@ import { useDebounce } from '../../../hooks';
 
 interface PatientSelectModalProps {
     slot: Slot;
-    onSelect: (patientId: string, slot: Slot) => void;
+    onSelect: (patientId: string, slot: Slot, recurringPattern?: any) => void;
     onClose: () => void;
 }
 
@@ -25,6 +25,23 @@ export function PatientSelectModal({ slot, onSelect, onClose }: PatientSelectMod
         minute: '2-digit',
         timeZone: 'UTC'
     });
+
+    const [frequency, setFrequency] = useState<'none' | 'weekly' | 'biweekly' | 'monthly'>('none');
+    const [durationMonths, setDurationMonths] = useState<number>(3);
+
+    const handleSelectPatient = (patientId: string) => {
+        let recurringPattern = undefined;
+        if (frequency !== 'none') {
+            const seriesEndDate = new Date(slot.startAt);
+            seriesEndDate.setMonth(seriesEndDate.getMonth() + durationMonths);
+            recurringPattern = {
+                frequency,
+                interval: 1,
+                seriesEndDate,
+            };
+        }
+        onSelect(patientId, slot, recurringPattern);
+    };
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
@@ -56,6 +73,50 @@ export function PatientSelectModal({ slot, onSelect, onClose }: PatientSelectMod
                     </div>
                 </div>
 
+                {/* Repetir Turno Options */}
+                <div className="px-4 py-3 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-700">
+                    <label className="block text-xs font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                        Repetir turno
+                    </label>
+                    <div className="flex flex-wrap gap-2 mb-2">
+                        {(
+                            [
+                                { id: 'none', label: 'No repetir' },
+                                { id: 'weekly', label: 'Cada semana' },
+                                { id: 'biweekly', label: 'Cada 2 sem.' },
+                                { id: 'monthly', label: 'Cada mes' },
+                            ] as const
+                        ).map((option) => (
+                            <button
+                                key={option.id}
+                                onClick={() => setFrequency(option.id)}
+                                className={`px-2.5 py-1 text-xs font-medium rounded-md border transition-colors ${frequency === option.id
+                                    ? 'bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-900/30 dark:border-indigo-800/50 dark:text-indigo-400'
+                                    : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800'
+                                    }`}
+                            >
+                                {option.label}
+                            </button>
+                        ))}
+                    </div>
+
+                    {frequency !== 'none' && (
+                        <div className="animate-in fade-in slide-in-from-top-1 flex items-center gap-2 mt-2">
+                            <label className="text-xs text-gray-600 dark:text-gray-400 font-medium">Hasta:</label>
+                            <select
+                                value={durationMonths}
+                                onChange={(e) => setDurationMonths(Number(e.target.value))}
+                                className="block w-24 px-2 py-1 text-xs border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            >
+                                <option value={1}>1 mes</option>
+                                <option value={3}>3 meses</option>
+                                <option value={6}>6 meses</option>
+                                <option value={12}>12 meses</option>
+                            </select>
+                        </div>
+                    )}
+                </div>
+
                 <div className="flex-1 overflow-y-auto p-2">
                     {isLoading ? (
                         <div className="flex items-center justify-center py-8">
@@ -70,7 +131,7 @@ export function PatientSelectModal({ slot, onSelect, onClose }: PatientSelectMod
                             {patients.map((patient: PatientListItem) => (
                                 <button
                                     key={patient._id}
-                                    onClick={() => onSelect(patient._id, slot)}
+                                    onClick={() => handleSelectPatient(patient._id)}
                                     className="w-full text-left px-4 py-3 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors flex items-center justify-between group"
                                 >
                                     <div>

@@ -3,6 +3,7 @@
 import { Drawer } from 'vaul';
 import { CheckCircle, CalendarClock, XCircle, Trash2, X } from 'lucide-react';
 import { useState } from 'react';
+import RecurringEditDialog from '../RecurringEditDialog';
 
 const CANCEL_REASONS = [
     { value: 'patient_notice', label: 'Paciente avisó', source: 'PATIENT' as const },
@@ -16,9 +17,9 @@ interface TurnoActionSheetProps {
     onOpenChange: (open: boolean) => void;
     appointment: any;
     onMarkCompleted?: (id: string) => void;
-    onReschedule?: (id: string) => void;
-    onCancel?: (id: string, source: 'PATIENT' | 'PROFESSIONAL' | 'SYSTEM', reason: string) => void;
-    onDelete?: (id: string) => void;
+    onReschedule?: (id: string, recurringMode?: 'single' | 'forward' | 'all') => void;
+    onCancel?: (id: string, source: 'PATIENT' | 'PROFESSIONAL' | 'SYSTEM', reason: string, recurringMode?: 'single' | 'forward' | 'all') => void;
+    onDelete?: (id: string, recurringMode?: 'single' | 'forward' | 'all') => void;
 }
 
 export default function TurnoActionSheet({
@@ -31,15 +32,36 @@ export default function TurnoActionSheet({
     onDelete,
 }: TurnoActionSheetProps) {
     const [showCancelReasons, setShowCancelReasons] = useState(false);
+    const [recurringAction, setRecurringAction] = useState<{ type: 'edit' | 'cancel' | 'delete', reasonData?: typeof CANCEL_REASONS[0] } | null>(null);
 
     const handleClose = () => {
         setShowCancelReasons(false);
+        setRecurringAction(null);
         onOpenChange(false);
     };
 
-    const handleCancelWithReason = (reason: typeof CANCEL_REASONS[0]) => {
-        onCancel?.(appointment?._id || appointment?.appointmentId, reason.source, reason.label);
+    const handleActionClick = (type: 'edit' | 'cancel' | 'delete', reasonData?: typeof CANCEL_REASONS[0]) => {
+        if (appointment?.isRecurring) {
+            setRecurringAction({ type, reasonData });
+        } else {
+            executeAction(type, 'single', reasonData);
+        }
+    };
+
+    const executeAction = (type: 'edit' | 'cancel' | 'delete', mode: 'single' | 'forward' | 'all', reasonData?: typeof CANCEL_REASONS[0]) => {
+        const id = appointment?._id || appointment?.appointmentId;
+        if (type === 'edit') {
+            onReschedule?.(id, mode);
+        } else if (type === 'cancel' && reasonData) {
+            onCancel?.(id, reasonData.source, reasonData.label, mode);
+        } else if (type === 'delete') {
+            onDelete?.(id, mode);
+        }
         handleClose();
+    };
+
+    const handleCancelWithReason = (reason: typeof CANCEL_REASONS[0]) => {
+        handleActionClick('cancel', reason);
     };
 
     if (!appointment) return null;
@@ -86,7 +108,7 @@ export default function TurnoActionSheet({
                                 </button>
 
                                 <button
-                                    onClick={() => { onReschedule?.(appointment._id || appointment.appointmentId); handleClose(); }}
+                                    onClick={() => handleActionClick('edit')}
                                     className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-left hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
                                 >
                                     <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center">
@@ -114,7 +136,7 @@ export default function TurnoActionSheet({
                                 <div className="border-t border-gray-100 dark:border-gray-800 my-2" />
 
                                 <button
-                                    onClick={() => { onDelete?.(appointment._id || appointment.appointmentId); handleClose(); }}
+                                    onClick={() => handleActionClick('delete')}
                                     className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-left hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                                 >
                                     <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
@@ -147,6 +169,15 @@ export default function TurnoActionSheet({
                     </div>
                 </Drawer.Content>
             </Drawer.Portal>
+
+            {recurringAction && (
+                <RecurringEditDialog
+                    open={!!recurringAction}
+                    onOpenChange={(open) => !open && setRecurringAction(null)}
+                    actionType={recurringAction.type}
+                    onConfirm={(mode) => executeAction(recurringAction.type, mode, recurringAction.reasonData)}
+                />
+            )}
         </Drawer.Root>
     );
 }

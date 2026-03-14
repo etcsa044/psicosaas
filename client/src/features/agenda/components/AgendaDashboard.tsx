@@ -184,14 +184,18 @@ export function AgendaDashboard() {
         }
     };
 
-    const executeCreateFromClick = async (patientId: string, slot: Slot, override = false) => {
+    const executeCreateFromClick = async (patientId: string, slot: Slot, recurringPattern?: any, override = false) => {
         try {
-            const result = await createMutateAsync({
+            const payload: any = {
                 patientId,
                 startAt: slot.startAt,
                 endAt: slot.endAt,
                 overrideFrequencyAlert: override
-            }) as any;
+            };
+            if (recurringPattern) {
+                payload.recurringPattern = recurringPattern;
+            }
+            const result = await createMutateAsync(payload) as any;
 
             if (result?._cancellationWarning?.warning) {
                 toast(`Nota clínica: El paciente tuvo ${result._cancellationWarning.cancellationsLastPeriod} ausencias/cancelaciones recientes.`, { icon: '⚠️', duration: 6000 });
@@ -204,7 +208,7 @@ export function AgendaDashboard() {
                 const status = error.response.status;
                 const message = error.response.data.message || 'Error de validación clínica';
                 if (status === 409) {
-                    setConflictError({ type: 'alert', message, pendingAction: () => executeCreateFromClick(patientId, slot, true) });
+                    setConflictError({ type: 'alert', message, pendingAction: () => executeCreateFromClick(patientId, slot, recurringPattern, true) });
                 } else if (status === 403) {
                     setConflictError({ type: 'block', message });
                 } else {
@@ -404,9 +408,9 @@ export function AgendaDashboard() {
                 <PatientSelectModal
                     slot={creatingSlot}
                     onClose={() => setCreatingSlot(null)}
-                    onSelect={(patientId, slot) => {
+                    onSelect={(patientId, slot, recurringPattern) => {
                         setCreatingSlot(null);
-                        executeCreateFromClick(patientId, slot);
+                        executeCreateFromClick(patientId, slot, recurringPattern);
                     }}
                 />
             )}
