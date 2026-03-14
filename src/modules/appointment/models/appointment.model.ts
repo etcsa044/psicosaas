@@ -28,6 +28,8 @@ export interface IAppointment extends Document {
         interval?: number;
         parentAppointmentId?: Types.ObjectId;
         seriesEndMaterializedAt?: Date; // Limit for materialized recurrence expansion
+        seriesEndDate?: Date;
+        monthlyMode?: 'same_date' | 'same_weekday_position';
     };
     reminders: Array<{
         type: string;
@@ -77,6 +79,8 @@ const AppointmentSchema = new Schema<IAppointment>(
             interval: { type: Number, min: 1, max: 12 },
             parentAppointmentId: { type: Schema.Types.ObjectId, ref: 'Appointment' },
             seriesEndMaterializedAt: { type: Date },
+            seriesEndDate: { type: Date },
+            monthlyMode: { type: String, enum: ['same_date', 'same_weekday_position'] },
         },
         reminders: [
             {

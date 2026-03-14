@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { appointmentController } from './appointment.controller';
+import { recurringAppointmentController } from './recurringAppointment.controller';
 import { authMiddleware } from '@shared/middleware/auth.middleware';
 import { tenantMiddleware } from '@shared/middleware/tenant.middleware';
 import { requirePermission } from '@shared/middleware/permission.middleware';
@@ -18,6 +19,13 @@ router.patch('/:id/status', requirePermission('EDIT_APPOINTMENT'), (req, res, ne
 router.patch('/:id/reschedule', requirePermission('EDIT_APPOINTMENT'), (req, res, next) => appointmentController.reschedule(req as any, res, next));
 router.patch('/:id/cancel', requirePermission('CANCEL_APPOINTMENT'), (req, res, next) => appointmentController.cancel(req as any, res, next));
 router.delete('/:id', requirePermission('CANCEL_APPOINTMENT'), (req, res, next) => appointmentController.delete(req as any, res, next));
+
+// Recurring Appointments
+router.post('/recurring', requirePermission('CREATE_APPOINTMENT'), (req, res, next) => recurringAppointmentController.create(req as any, res, next));
+router.patch('/recurring/:id/single', requirePermission('EDIT_APPOINTMENT'), (req, res, next) => recurringAppointmentController.modifySingle(req as any, res, next));
+router.patch('/recurring/:id/forward', requirePermission('EDIT_APPOINTMENT'), (req, res, next) => recurringAppointmentController.modifyFromHere(req as any, res, next));
+router.patch('/recurring/:id/all', requirePermission('EDIT_APPOINTMENT'), (req, res, next) => recurringAppointmentController.modifyAll(req as any, res, next));
+router.patch('/recurring/:id/cancel', requirePermission('CANCEL_APPOINTMENT'), (req, res, next) => recurringAppointmentController.cancelSeries(req as any, res, next));
 
 // Schedule
 router.get('/schedule/:professionalId', requirePermission('VIEW_SCHEDULE'), (req, res, next) => appointmentController.getSchedule(req as any, res, next));
