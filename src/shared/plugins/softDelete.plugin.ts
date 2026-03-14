@@ -20,7 +20,7 @@ export function softDeletePlugin(schema: Schema): void {
         this.isDeleted = true;
         this.deletedAt = new Date();
         if (deletedById) this.deletedBy = deletedById;
-        return this.save();
+        return this.save({ validateBeforeSave: false });
     };
 
     // Add restore method
