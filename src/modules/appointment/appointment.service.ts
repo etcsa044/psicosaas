@@ -38,14 +38,22 @@ export class AppointmentService {
                 query._id = { $ne: excludeAppointmentId };
             }
 
-            const weeklyCount = await Appointment.countDocuments(query);
+            const existingAppointments = await Appointment.find(query)
+                .select('startAt')
+                .sort({ startAt: 1 })
+                .lean();
+            const weeklyCount = existingAppointments.length;
             const maxPerWeek = effectivePolicy.maxPerWeek || 1;
 
             if (weeklyCount >= maxPerWeek) {
+                const dateFormatter = new Intl.DateTimeFormat('es-AR', { weekday: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'America/Argentina/Buenos_Aires' });
+                const dates = existingAppointments.map(a => dateFormatter.format(new Date(a.startAt))).join(', ');
+                const contextMsg = `Límite semanal alcanzado (máx. ${maxPerWeek}). Turnos existentes: ${dates}.`;
+
                 if (effectivePolicy.mode === 'block') {
-                    throw new ForbiddenError(`Policy Block: Patient reached weekly limit of ${maxPerWeek} appointment(s).`);
+                    throw new ForbiddenError(contextMsg);
                 } else if (effectivePolicy.mode === 'alert' && !overrideFrequencyAlert) {
-                    throw new ConflictError(`Policy Alert: Patient reached weekly limit of ${maxPerWeek} appointment(s).`);
+                    throw new ConflictError(contextMsg);
                 }
             }
         }

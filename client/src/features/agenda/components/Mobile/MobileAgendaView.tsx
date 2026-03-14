@@ -4,16 +4,20 @@ import { useState, useMemo } from 'react';
 import { format, addDays, startOfWeek, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import TurnoMobileCard from './TurnoMobileCard';
+import TurnoActionSheet from './TurnoActionSheet';
 import { Plus } from 'lucide-react';
 
 interface MobileAgendaViewProps {
     appointments: any[];
     onNewTurno?: (date: Date) => void;
     onStatusChange?: (id: string, newStatus: string) => void;
+    onCancel?: (id: string, source: 'PATIENT' | 'PROFESSIONAL' | 'SYSTEM', reason: string) => void;
+    onDelete?: (id: string) => void;
 }
 
-export default function MobileAgendaView({ appointments, onNewTurno, onStatusChange }: MobileAgendaViewProps) {
+export default function MobileAgendaView({ appointments, onNewTurno, onStatusChange, onCancel, onDelete }: MobileAgendaViewProps) {
     const [selectedDate, setSelectedDate] = useState(new Date());
+    const [actionSheetApp, setActionSheetApp] = useState<any>(null);
 
     // Generate current week dates for strip calendar
     const stripDates = useMemo(() => {
@@ -73,8 +77,8 @@ export default function MobileAgendaView({ appointments, onNewTurno, onStatusCha
                                 key={idx}
                                 onClick={() => setSelectedDate(date)}
                                 className={`flex flex-col items-center justify-center min-w-[3rem] p-2 rounded-2xl snap-center transition-all ${isSelected
-                                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20 scale-105'
-                                        : 'bg-transparent text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20 scale-105'
+                                    : 'bg-transparent text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
                                     }`}
                             >
                                 <span className={`text-[10px] uppercase font-bold tracking-wider mb-1 ${isSelected ? 'text-indigo-100' : 'text-gray-400'}`}>
@@ -113,6 +117,7 @@ export default function MobileAgendaView({ appointments, onNewTurno, onStatusCha
                                             <TurnoMobileCard
                                                 appointment={app}
                                                 onStatusChange={onStatusChange}
+                                                onClick={() => setActionSheetApp(app)}
                                             />
                                         </div>
                                     ))}
@@ -133,6 +138,16 @@ export default function MobileAgendaView({ appointments, onNewTurno, onStatusCha
                     </div>
                 ))}
             </div>
+            {/* Action Sheet for selected turno */}
+            <TurnoActionSheet
+                open={!!actionSheetApp}
+                onOpenChange={(open) => { if (!open) setActionSheetApp(null); }}
+                appointment={actionSheetApp}
+                onMarkCompleted={(id) => onStatusChange?.(id, 'completed')}
+                onReschedule={(id) => onStatusChange?.(id, 'pending')}
+                onCancel={onCancel}
+                onDelete={onDelete}
+            />
         </div>
     );
 }
