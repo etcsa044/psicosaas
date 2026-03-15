@@ -10,6 +10,7 @@ export class RecurringAppointmentController {
             const input: CreateRecurringSeriesInput = {
                 tenantId: req.tenantId!,
                 userId: req.user!._id,
+                professionalId: req.body.professionalId ? new Types.ObjectId(req.body.professionalId) : new Types.ObjectId(req.user!._id),
                 ...req.body
             };
             const result = await recurringAppointmentService.createSeries(input);

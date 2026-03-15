@@ -4,6 +4,8 @@ import { useAgendaUIStore } from '../stores/agendaUIStore';
 import { useWeeklyAgenda } from '../hooks/useWeeklyAgenda';
 import { useCreateAppointment } from '../hooks/useCreateAppointment';
 import { useRescheduleAppointment } from '../hooks/useRescheduleAppointment';
+import { useDeleteAppointment } from '../hooks/useDeleteAppointment';
+import { useCancelAppointment } from '../hooks/useCancelAppointment';
 import { usePatients, PatientListItem } from '../hooks/usePatients';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { DndContext, DragEndEvent, closestCenter, useSensor, useSensors, PointerSensor } from '@dnd-kit/core';
@@ -65,6 +67,8 @@ export function AgendaDashboard() {
     const { data: agenda, isLoading, isError, error } = useWeeklyAgenda(fetchWindow.startISO, fetchWindow.days);
     const { mutateAsync: createMutateAsync } = useCreateAppointment();
     const rescheduleMutation = useRescheduleAppointment();
+    const { mutateAsync: cancelAppointment } = useCancelAppointment();
+    const { mutateAsync: deleteAppointment } = useDeleteAppointment();
 
     const [sidebarSearchTerm, setSidebarSearchTerm] = useState('');
     const [isQuickCreateOpen, setIsQuickCreateOpen] = useState(false);
@@ -302,6 +306,24 @@ export function AgendaDashboard() {
                                         onStatusChange={async (id, s) => {
                                             // TODO trigger modal or reschedule api
                                             console.log("Status change mobile for", id, s)
+                                        }}
+                                        onCancel={async (id, source, reason, mode) => {
+                                            try {
+                                                await cancelAppointment({ appointmentId: id, source, reason, recurringMode: mode });
+                                                toast.success(mode === 'single' ? 'Turno cancelado exitosamente' : 'Serie cancelada exitosamente');
+                                            } catch (error: any) {
+                                                const msg = error.response?.data?.message || 'Error desconocido';
+                                                toast.error(`Error cancelando turno: ${msg}`);
+                                            }
+                                        }}
+                                        onDelete={async (id, mode) => {
+                                            try {
+                                                await deleteAppointment({ appointmentId: id, recurringMode: mode });
+                                                toast.success(mode === 'single' ? 'Turno eliminado exitosamente' : 'Serie eliminada exitosamente');
+                                            } catch (error: any) {
+                                                const msg = error.response?.data?.message || 'Error desconocido';
+                                                toast.error(`Error eliminando turno: ${msg}`);
+                                            }
                                         }}
                                     />
                                 </div>

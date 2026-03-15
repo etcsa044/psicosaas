@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/axios';
 import { Loader2, Paperclip, File, Trash2, UploadCloud, User as UserIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -31,6 +32,7 @@ export default function PatientDocumentList({ patientId }: PatientDocumentListPr
     const [fileName, setFileName] = useState('');
     const [fileUrl, setFileUrl] = useState('');
     const [type, setType] = useState<PatientDocument['type']>('documento');
+    const [pendingDeleteDocId, setPendingDeleteDocId] = useState<string | null>(null);
 
     const { data, isLoading, isError } = useQuery<{ data: PatientDocument[] }>({
         queryKey: ['patients', patientId, 'documents'],
@@ -204,11 +206,7 @@ export default function PatientDocumentList({ patientId }: PatientDocumentListPr
                                         {doc.fileName}
                                     </a>
                                     <button
-                                        onClick={() => {
-                                            if (window.confirm('¿Seguro que deseas eliminar este documento? Esta acción no se puede deshacer.')) {
-                                                deleteMutation.mutate(doc._id);
-                                            }
-                                        }}
+                                        onClick={() => setPendingDeleteDocId(doc._id)}
                                         disabled={deleteMutation.isPending}
                                         className="p-1 -mr-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
                                         title="Eliminar"
@@ -233,6 +231,21 @@ export default function PatientDocumentList({ patientId }: PatientDocumentListPr
                     ))}
                 </div>
             )}
+
+            <ConfirmDialog
+                open={!!pendingDeleteDocId}
+                onOpenChange={(open) => !open && setPendingDeleteDocId(null)}
+                title="Eliminar Documento"
+                description="¿Seguro que deseas eliminar este documento? Esta acción no se puede deshacer."
+                onConfirm={() => {
+                    if (pendingDeleteDocId) {
+                        deleteMutation.mutate(pendingDeleteDocId);
+                        setPendingDeleteDocId(null);
+                    }
+                }}
+                confirmLabel="Eliminar"
+                variant="destructive"
+            />
         </div>
     );
 }

@@ -11,8 +11,8 @@ interface MobileAgendaViewProps {
     appointments: any[];
     onNewTurno?: (date: Date) => void;
     onStatusChange?: (id: string, newStatus: string) => void;
-    onCancel?: (id: string, source: 'PATIENT' | 'PROFESSIONAL' | 'SYSTEM', reason: string) => void;
-    onDelete?: (id: string) => void;
+    onCancel?: (id: string, source: 'PATIENT' | 'PROFESSIONAL' | 'SYSTEM', reason: string, mode?: 'single' | 'forward' | 'all') => void;
+    onDelete?: (id: string, mode?: 'single' | 'forward' | 'all') => void;
 }
 
 export default function MobileAgendaView({ appointments, onNewTurno, onStatusChange, onCancel, onDelete }: MobileAgendaViewProps) {
