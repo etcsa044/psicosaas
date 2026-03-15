@@ -5,6 +5,7 @@ export interface Slot {
     appointmentId?: string;
     patientName?: string;
     patientType?: string;
+    isRecurring?: boolean;
 }
 
 export interface DayAgenda {

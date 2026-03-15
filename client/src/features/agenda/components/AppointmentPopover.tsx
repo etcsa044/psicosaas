@@ -4,6 +4,7 @@ import { useDeleteAppointment } from '../hooks/useDeleteAppointment';
 import { useCancelAppointment } from '../hooks/useCancelAppointment';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
+import RecurringEditDialog from './RecurringEditDialog';
 
 interface AppointmentPopoverProps {
     slot: Slot;
@@ -14,13 +15,23 @@ export function AppointmentPopover({ slot, onClose }: AppointmentPopoverProps) {
     const { mutateAsync: deleteAppointment, isPending: isDeleting } = useDeleteAppointment();
     const { mutateAsync: cancelAppointment, isPending: isCancelling } = useCancelAppointment();
     const [confirmingAction, setConfirmingAction] = useState<'cancel' | 'delete' | null>(null);
+    const [recurringAction, setRecurringAction] = useState<'cancel' | 'delete' | null>(null);
 
     if (!slot.appointmentId) return null;
 
     const startHour = new Date(slot.startAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
     const endHour = new Date(slot.endAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
 
-    const handleCancelConfirm = async () => {
+    const handleActionClick = (action: 'cancel' | 'delete') => {
+        if (slot.isRecurring) {
+            setRecurringAction(action);
+        } else {
+            if (action === 'cancel') executeCancel('single');
+            else executeDelete('single');
+        }
+    };
+
+    const executeCancel = async (mode: 'single' | 'forward' | 'all') => {
         try {
             const response = await cancelAppointment({ appointmentId: slot.appointmentId! });
 
@@ -34,22 +45,24 @@ export function AppointmentPopover({ slot, onClose }: AppointmentPopoverProps) {
                 toast.success('Turno cancelado exitosamente');
             }
 
+            setRecurringAction(null);
             onClose();
         } catch (error: any) {
             console.error("❌ Error cancelando turno:", error);
             const errorMsg = error.response?.data?.message || 'Error desconocido';
-            alert(`Hubo un problema al cancelar el turno: ${errorMsg}`);
+            toast.error(`Hubo un problema al cancelar el turno: ${errorMsg}`);
         }
     };
 
-    const handleDeleteConfirm = async () => {
+    const executeDelete = async (mode: 'single' | 'forward' | 'all') => {
         try {
             await deleteAppointment(slot.appointmentId!);
+            setRecurringAction(null);
             onClose();
         } catch (error: any) {
             console.error("❌ Error eliminando turno:", error);
             const errorMsg = error.response?.data?.message || 'Error desconocido';
-            alert(`Hubo un problema al eliminar el turno: ${errorMsg}`);
+            toast.error(`Hubo un problema al eliminar el turno: ${errorMsg}`);
         }
     };
 
@@ -114,7 +127,7 @@ export function AppointmentPopover({ slot, onClose }: AppointmentPopoverProps) {
                                     Volver
                                 </button>
                                 <button
-                                    onClick={confirmingAction === 'cancel' ? handleCancelConfirm : handleDeleteConfirm}
+                                    onClick={() => handleActionClick(confirmingAction)}
                                     disabled={isPending}
                                     className={`flex-1 px-3 py-1.5 text-white rounded-md text-sm font-medium transition flex items-center justify-center gap-1 disabled:opacity-50 ${confirmingAction === 'cancel'
                                         ? 'bg-orange-600 hover:bg-orange-700'
@@ -147,6 +160,17 @@ export function AppointmentPopover({ slot, onClose }: AppointmentPopoverProps) {
                     )}
                 </div>
             </div>
+
+            <RecurringEditDialog
+                open={!!recurringAction}
+                onOpenChange={(isOpen) => !isOpen && setRecurringAction(null)}
+                actionType={recurringAction || 'edit'}
+                onConfirm={(mode) => {
+                    if (recurringAction === 'cancel') executeCancel(mode);
+                    if (recurringAction === 'delete') executeDelete(mode);
+                }}
+            />
         </div>
     );
 }
+

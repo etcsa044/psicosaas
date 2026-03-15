@@ -78,6 +78,7 @@ export function AgendaDashboard() {
 
     const [selectedAppointment, setSelectedAppointment] = useState<Slot | null>(null);
     const [creatingSlot, setCreatingSlot] = useState<Slot | null>(null);
+    const [droppedPatient, setDroppedPatient] = useState<{ id: string; name: string; type?: string } | null>(null);
     const [conflictError, setConflictError] = useState<{
         type: 'alert' | 'block';
         message: string;
@@ -117,36 +118,9 @@ export function AgendaDashboard() {
             const patient = active.data.current?.patient;
             if (!patient) return;
 
-            const executeCreate = async (override = false) => {
-                try {
-                    const result = await createMutateAsync({
-                        patientId: patient.id,
-                        startAt: slot.startAt,
-                        endAt: slot.endAt,
-                        overrideFrequencyAlert: override
-                    }) as any;
-
-                    if (result?._cancellationWarning?.warning) {
-                        toast(`Nota clínica: El paciente tuvo ${result._cancellationWarning.cancellationsLastPeriod} ausencias/cancelaciones recientes.`, { icon: '⚠️', duration: 6000 });
-                    }
-
-                    console.log('Drop & Booking Successful!');
-                    setConflictError(null);
-                } catch (error: any) {
-                    if (axios.isAxiosError(error) && error.response) {
-                        const status = error.response.status;
-                        const message = error.response.data.message || 'Error de validación clínica';
-                        if (status === 409) {
-                            setConflictError({ type: 'alert', message, pendingAction: () => executeCreate(true) });
-                        } else if (status === 403) {
-                            setConflictError({ type: 'block', message });
-                        } else {
-                            console.error('Booking failed', error);
-                        }
-                    }
-                }
-            };
-            await executeCreate();
+            // Open the modal with the patient pre-selected so user can choose recurrence
+            setDroppedPatient({ id: patient.id, name: patient.name, type: patient.patientType });
+            setCreatingSlot(slot);
 
         } else if (draggedType === 'appointment') {
             const appointmentId = active.data.current?.appointmentId;
@@ -213,7 +187,7 @@ export function AgendaDashboard() {
                     setConflictError({ type: 'block', message });
                 } else {
                     console.error('Click Booking failed', error);
-                    alert(`Error: ${message}`);
+                    toast.error(`Error: ${message}`);
                 }
             }
         }
@@ -407,9 +381,11 @@ export function AgendaDashboard() {
             {creatingSlot && (
                 <PatientSelectModal
                     slot={creatingSlot}
-                    onClose={() => setCreatingSlot(null)}
+                    preSelectedPatient={droppedPatient || undefined}
+                    onClose={() => { setCreatingSlot(null); setDroppedPatient(null); }}
                     onSelect={(patientId, slot, recurringPattern) => {
                         setCreatingSlot(null);
+                        setDroppedPatient(null);
                         executeCreateFromClick(patientId, slot, recurringPattern);
                     }}
                 />

@@ -14,6 +14,7 @@ interface Slot {
     appointmentId?: string;
     patientName?: string;
     patientType?: string;
+    isRecurring?: boolean;
 }
 
 interface DayAgenda {
@@ -129,6 +130,7 @@ export const generateAgendaSlots = async (
                     appointmentId: occupiedAppt ? occupiedAppt._id.toString() : undefined,
                     patientName: occupiedAppt ? `${(occupiedAppt.patientId as any)?.personalInfo?.firstName || ''} ${(occupiedAppt.patientId as any)?.personalInfo?.lastName || ''}`.trim() : undefined,
                     patientType: occupiedAppt ? (occupiedAppt.patientId as any)?.patientType : undefined,
+                    isRecurring: occupiedAppt ? occupiedAppt.isRecurring : undefined,
                 });
 
                 // Next slot (duration + buffer)

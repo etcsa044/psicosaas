@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { X, Loader2 } from 'lucide-react';
 import { useCreatePatient } from '../hooks/useCreatePatient';
+import toast from 'react-hot-toast';
 
 const createPatientSchema = z.object({
     firstName: z.string().min(1, 'El nombre es requerido'),
@@ -48,7 +49,7 @@ export function QuickCreatePatientModal({ onClose }: QuickCreatePatientModalProp
             onClose();
         } catch (error) {
             console.error('Error creating patient:', error);
-            alert('Error al crear paciente. Revise los datos y reintente.');
+            toast.error('Error al crear paciente. Revise los datos y reintente.');
         }
     };
 
