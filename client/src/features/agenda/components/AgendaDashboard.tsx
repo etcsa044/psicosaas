@@ -186,7 +186,11 @@ export function AgendaDashboard() {
                 const status = error.response.status;
                 const message = error.response.data.message || 'Error de validación clínica';
                 if (status === 409) {
-                    setConflictError({ type: 'alert', message, pendingAction: () => executeCreateFromClick(patientId, slot, recurringPattern, true) });
+                    if (recurringPattern) {
+                        setConflictError({ type: 'block', message });
+                    } else {
+                        setConflictError({ type: 'alert', message, pendingAction: () => executeCreateFromClick(patientId, slot, recurringPattern, true) });
+                    }
                 } else if (status === 403) {
                     setConflictError({ type: 'block', message });
                 } else {
