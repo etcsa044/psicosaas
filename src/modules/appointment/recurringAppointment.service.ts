@@ -1,7 +1,7 @@
 import { Types } from 'mongoose';
 import Appointment, { IAppointment } from './models/appointment.model';
 import Schedule from './models/schedule.model';
-import { ConflictError, NotFoundError } from '@shared/errors/AppError';
+import { ConflictError, NotFoundError, ForbiddenError } from '@shared/errors/AppError';
 import { logAuditEvent } from '@shared/services/entityAuditLog.service';
 import { addDays, addWeeks, addMonths, isBefore, isSameDay } from 'date-fns';
 
@@ -52,8 +52,9 @@ export class RecurringAppointmentService {
             // If parent has a conflict, we still need a "virtual" parent or we can create the first available as parent.
             // For simplicity, we create the parent anyway but maybe marked as conflict? 
             // Wait, if the parent has a conflict, we skip it. But we need a parent ID for the series.
-            // Let's create a generic parent but set its status to cancelled, or just throw an error if the very first one is blocked.
-            throw new ConflictError('El turno inicial tiene un conflicto. Por favor, elegí un horario disponible para comenzar la serie.');
+            // Let's create a generic parent but set its status to cancelled, or just throw an        if (parentConflict) {
+            skippedConflicts++;
+            throw new ForbiddenError('El turno inicial tiene un conflicto. Por favor, elegí un horario disponible para comenzar la serie.');
         }
 
         const parentAppointment = await Appointment.create({
@@ -70,7 +71,7 @@ export class RecurringAppointmentService {
             isRecurring: true,
             recurringPattern: {
                 frequency: recurringPattern.frequency,
-                dayOfWeek: recurringPattern.dayOfWeek || parentStart.getDay(),
+                dayOfWeek: recurringPattern.dayOfWeek || parentStart.getUTCDay(),
                 interval: recurringPattern.interval || 1,
                 seriesEndDate: recurringPattern.seriesEndDate,
                 monthlyMode: recurringPattern.monthlyMode
@@ -131,7 +132,7 @@ export class RecurringAppointmentService {
                 isRecurring: true,
                 recurringPattern: {
                     frequency: recurringPattern.frequency,
-                    dayOfWeek: recurringPattern.dayOfWeek || parentStart.getDay(),
+                    dayOfWeek: recurringPattern.dayOfWeek || parentStart.getUTCDay(),
                     interval: recurringPattern.interval || 1,
                     parentAppointmentId,
                     seriesEndDate: recurringPattern.seriesEndDate,
@@ -166,7 +167,7 @@ export class RecurringAppointmentService {
 
         // 2. Check professional schedule/work hours
         try {
-            const dayOfWeek = startAt.getDay();
+            const dayOfWeek = startAt.getUTCDay();
             const schedule = await Schedule.findOne({
                 tenantId,
                 professionalId,

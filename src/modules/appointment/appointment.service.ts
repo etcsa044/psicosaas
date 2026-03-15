@@ -47,7 +47,7 @@ export class AppointmentService {
             const maxPerWeek = effectivePolicy.maxPerWeek || 1;
 
             if (weeklyCount >= maxPerWeek) {
-                const dateFormatter = new Intl.DateTimeFormat('es-AR', { weekday: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'America/Argentina/Buenos_Aires' });
+                const dateFormatter = new Intl.DateTimeFormat('es-AR', { weekday: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
                 const dates = existingAppointments.map(a => dateFormatter.format(new Date(a.startAt))).join(', ');
                 const contextMsg = `Límite semanal alcanzado (máx. ${maxPerWeek}). Turnos existentes: ${dates}.`;
 
