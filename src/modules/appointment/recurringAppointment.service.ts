@@ -6,6 +6,8 @@ import { appointmentService } from './appointment.service';
 import { ConflictError, NotFoundError, ForbiddenError } from '@shared/errors/AppError';
 import { logAuditEvent } from '@shared/services/entityAuditLog.service';
 import { addDays, addWeeks, addMonths, isBefore, isSameDay } from 'date-fns';
+import { googleCalendarService } from '../google-calendar/googleCalendar.service';
+import { logger } from '@shared/utils/logger';
 
 const MAX_RECURRING_APPOINTMENTS = 120;
 
@@ -289,6 +291,18 @@ export class RecurringAppointmentService {
         const effectiveParentId = parent.recurringPattern?.parentAppointmentId || parent._id;
 
         // Cancel all future
+        // Fetch appointments with Google Event IDs to sync deletion
+        const appointmentsToSync = await Appointment.find({
+            tenantId,
+            $or: [
+                { 'recurringPattern.parentAppointmentId': effectiveParentId },
+                { _id: effectiveParentId }
+            ],
+            startAt: { $gte: new Date() }, // Future ones
+            status: { $in: ['scheduled', 'confirmed'] },
+            googleEventId: { $exists: true, $ne: null }
+        }).select('googleEventId professionalId').setOptions({ _skipTenantCheck: true } as any);
+
         await Appointment.updateMany(
             {
                 tenantId,
@@ -309,6 +323,14 @@ export class RecurringAppointmentService {
                 }
             }
         );
+
+        // Fire-and-forget Google sync for the old series
+        for (const app of appointmentsToSync) {
+            if ((app as any).googleEventId) {
+                googleCalendarService.deleteEvent(app.professionalId, (app as any).googleEventId)
+                    .catch(err => logger.error('Series delete sync failed', { error: err, appointmentId: app._id }));
+            }
+        }
 
         // Re-create from parent's original start date or updated start date?
         // Usually modifying the whole series applies to future ones, or starts a new series.
@@ -346,6 +368,18 @@ export class RecurringAppointmentService {
 
         const parentId = appointment.recurringPattern?.parentAppointmentId || appointment._id;
 
+        // Fetch appointments with Google Event IDs to sync deletion
+        const appointmentsToSync = await Appointment.find({
+            tenantId,
+            $or: [
+                { 'recurringPattern.parentAppointmentId': parentId },
+                { _id: parentId }
+            ],
+            startAt: { $gte: appointment.startAt },
+            status: { $in: ['scheduled', 'confirmed'] },
+            googleEventId: { $exists: true, $ne: null }
+        }).select('googleEventId professionalId').setOptions({ _skipTenantCheck: true } as any);
+
         await Appointment.updateMany(
             {
                 tenantId,
@@ -366,6 +400,14 @@ export class RecurringAppointmentService {
                 }
             }
         );
+
+        // Fire-and-forget Google sync
+        for (const app of appointmentsToSync) {
+            if ((app as any).googleEventId) {
+                googleCalendarService.deleteEvent(app.professionalId, (app as any).googleEventId)
+                    .catch(err => logger.error('Series cancel sync failed', { error: err, appointmentId: app._id }));
+            }
+        }
 
         logAuditEvent(tenantId, 'AppointmentSeries', parentId as Types.ObjectId, 'CANCEL', userId, { note: 'Cancelled Series from given date', reason });
     }

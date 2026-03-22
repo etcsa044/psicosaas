@@ -309,17 +309,19 @@ export class AppointmentService {
         const appointment = await Appointment.findOne({ tenantId, _id: id });
         if (!appointment) throw new NotFoundError('Appointment');
 
+        const googleEventId = (appointment as any).googleEventId;
+
         await (appointment as any).softDelete(userId.toString());
 
         logAuditEvent(tenantId, 'Appointment', appointment._id as Types.ObjectId, 'DELETE', userId);
 
         // Fire-and-forget: Sync deletion to Google Calendar
-        if ((appointment as any).googleEventId) {
+        if (googleEventId) {
             (async () => {
                 try {
                     await googleCalendarService.deleteEvent(
                         appointment.professionalId,
-                        (appointment as any).googleEventId
+                        googleEventId
                     );
                 } catch (gcError) {
                     logger.error('Google Calendar error during appointment deletion', { error: gcError, appointmentId: appointment._id });
