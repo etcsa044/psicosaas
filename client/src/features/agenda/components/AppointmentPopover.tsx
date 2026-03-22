@@ -42,8 +42,9 @@ export function AppointmentPopover({ slot, onClose }: AppointmentPopoverProps) {
                 recurringMode: mode,
             });
 
-            if (response?.data?._cancellationWarning) {
-                toast(response.data._cancellationWarning, {
+            const warning = response?.data?._cancellationWarning;
+            if (warning?.warning) {
+                toast(`Nota clínica: El paciente tuvo ${warning.cancellationsLastPeriod} ausencias/cancelaciones recientes.`, {
                     icon: '⚠️',
                     duration: 6000,
                     style: { background: '#FEF2F2', color: '#991B1B', border: '1px solid #FCA5A5' }
