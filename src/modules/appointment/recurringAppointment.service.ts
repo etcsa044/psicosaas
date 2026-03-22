@@ -1,6 +1,8 @@
 import { Types } from 'mongoose';
 import Appointment, { IAppointment } from './models/appointment.model';
 import Schedule from './models/schedule.model';
+import Patient from '../patient/models/patient.model';
+import { appointmentService } from './appointment.service';
 import { ConflictError, NotFoundError, ForbiddenError } from '@shared/errors/AppError';
 import { logAuditEvent } from '@shared/services/entityAuditLog.service';
 import { addDays, addWeeks, addMonths, isBefore, isSameDay } from 'date-fns';
@@ -26,6 +28,7 @@ export interface CreateRecurringSeriesInput {
         monthlyMode?: 'same_date' | 'same_weekday_position';
     };
     userId: Types.ObjectId;
+    overrideFrequencyAlert?: boolean;
 }
 
 export class RecurringAppointmentService {
@@ -37,11 +40,17 @@ export class RecurringAppointmentService {
         let createdCount = 0;
         let skippedConflicts = 0;
 
-        const { tenantId, professionalId, patientId, startAt, endAt, duration, type, modality, location, notes, recurringPattern, userId } = input;
+        const { tenantId, professionalId, patientId, startAt, endAt, duration, type, modality, location, notes, recurringPattern, userId, overrideFrequencyAlert } = input;
 
         // 1. Create Parent Appointment
         const parentStart = new Date(startAt);
         const parentEnd = new Date(endAt);
+
+        // Validate frequency policy (same rules as individual appointments)
+        const patient = await Patient.findOne({ tenantId, _id: patientId }).lean() as any;
+        if (patient) {
+            await appointmentService.validateFrequencyPolicy(tenantId, professionalId, patient, parentStart, overrideFrequencyAlert);
+        }
 
         // Check conflict for parent
         const parentConflict = await this.hasConflict(tenantId, professionalId, parentStart, parentEnd);
