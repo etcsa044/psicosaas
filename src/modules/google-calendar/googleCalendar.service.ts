@@ -167,7 +167,8 @@ export const googleCalendarService = {
                 await Appointment.findByIdAndUpdate(appointment._id, { $set: updateFields }).setOptions({ _skipTenantCheck: true } as any);
             }
 
-            logger.info(`Google Calendar event created: ${googleEventId}`);
+            const userEmail = user?.googleIntegration?.email;
+            logger.info(`Google Calendar event created: ${googleEventId}`, { calendarId, userEmail, appointmentId: appointment._id });
             return googleEventId;
         } catch (error: any) {
             logger.error('Failed to create Google Calendar event', { error: error?.response?.data || error.message || error });
