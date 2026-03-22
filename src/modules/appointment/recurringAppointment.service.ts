@@ -151,8 +151,41 @@ export class RecurringAppointmentService {
         }
 
         if (childAppointmentsToInsert.length > 0) {
-            await Appointment.insertMany(childAppointmentsToInsert);
+            const children = await Appointment.insertMany(childAppointmentsToInsert);
+            
+            // Fire-and-forget: Sync children to Google Calendar
+            (async () => {
+                try {
+                    const patientName = `${patient?.personalInfo?.firstName || ''} ${patient?.personalInfo?.lastName || ''}`.trim();
+                    const patientEmail = patient?.personalInfo?.email;
+                    
+                    for (const child of children) {
+                        googleCalendarService.createEvent(
+                            professionalId,
+                            { ...child.toObject(), patientName },
+                            patientEmail
+                        ).catch(err => logger.error('Recurring child sync failed', { error: err, appointmentId: child._id }));
+                    }
+                } catch (err) {
+                    logger.error('Recurring series sync loop failed', err);
+                }
+            })();
         }
+
+        // Fire-and-forget: Sync parent to Google Calendar
+        (async () => {
+            try {
+                const patientName = `${patient?.personalInfo?.firstName || ''} ${patient?.personalInfo?.lastName || ''}`.trim();
+                const patientEmail = patient?.personalInfo?.email;
+                await googleCalendarService.createEvent(
+                    professionalId,
+                    { ...parentAppointment.toObject(), patientName },
+                    patientEmail
+                );
+            } catch (err) {
+                logger.error('Recurring parent sync failed', err);
+            }
+        })();
 
         return { createdCount, skippedConflicts };
     }
@@ -216,6 +249,25 @@ export class RecurringAppointmentService {
         await appointment.save();
 
         logAuditEvent(tenantId, 'Appointment', appointment._id as Types.ObjectId, 'UPDATE', userId, { note: 'Modified single occurrence of series' });
+
+        // Fire-and-forget: Sync update to Google Calendar
+        if ((appointment as any).googleEventId) {
+            (async () => {
+                try {
+                    await googleCalendarService.updateEvent(
+                        appointment.professionalId,
+                        (appointment as any).googleEventId,
+                        {
+                            startAt: appointment.startAt,
+                            endAt: appointment.endAt,
+                            modality: appointment.modality as any,
+                        }
+                    );
+                } catch (gcError) {
+                    logger.error('Google Calendar error during modifySingle sync', { error: gcError, appointmentId: appointment._id });
+                }
+            })();
+        }
     }
 
     /**
@@ -227,7 +279,15 @@ export class RecurringAppointmentService {
 
         const parentId = appointment.recurringPattern?.parentAppointmentId || appointment._id;
 
-        // Cancel all future active appointments in this series
+        // Fetch appointments with Google Event IDs to sync deletion
+        const appointmentsToSync = await Appointment.find({
+            tenantId,
+            'recurringPattern.parentAppointmentId': parentId,
+            startAt: { $gte: appointment.startAt },
+            status: { $in: ['scheduled', 'confirmed'] },
+            googleEventId: { $exists: true, $ne: null }
+        }).select('googleEventId professionalId').setOptions({ _skipTenantCheck: true } as any);
+
         await Appointment.updateMany(
             {
                 tenantId,
@@ -245,6 +305,14 @@ export class RecurringAppointmentService {
                 }
             }
         );
+
+        // Fire-and-forget Google sync
+        for (const app of appointmentsToSync) {
+            if ((app as any).googleEventId) {
+                googleCalendarService.deleteEvent(app.professionalId, (app as any).googleEventId)
+                    .catch(err => logger.error('Series cancel sync failed', { error: err, appointmentId: app._id }));
+            }
+        }
 
         // Cancel the current one too if it's the parent (so we can regenerate)
         if (!appointment.recurringPattern?.parentAppointmentId) {

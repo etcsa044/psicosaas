@@ -349,6 +349,26 @@ export class AppointmentService {
 
         appointment.updatedBy = userId;
         await appointment.save();
+
+        // Fire-and-forget: Sync update to Google Calendar
+        if ((appointment as any).googleEventId) {
+            (async () => {
+                try {
+                    await googleCalendarService.updateEvent(
+                        appointment.professionalId,
+                        (appointment as any).googleEventId,
+                        {
+                            startAt: appointment.startAt,
+                            endAt: appointment.endAt,
+                            modality: appointment.modality as any,
+                        }
+                    );
+                } catch (gcError) {
+                    logger.error('Google Calendar error during appointment update', { error: gcError, appointmentId: appointment._id });
+                }
+            })();
+        }
+
         return appointment;
     }
 
