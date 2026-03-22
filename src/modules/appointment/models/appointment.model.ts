@@ -38,6 +38,7 @@ export interface IAppointment extends Document {
         scheduledFor: Date;
     }>;
     isDeleted: boolean;
+    googleEventId?: string;
     createdBy?: Types.ObjectId;
     updatedBy?: Types.ObjectId;
 }
@@ -90,6 +91,7 @@ const AppointmentSchema = new Schema<IAppointment>(
                 scheduledFor: { type: Date, required: true },
             },
         ],
+        googleEventId: { type: String },
     },
     { timestamps: true }
 );

@@ -7,6 +7,7 @@ import { Save, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ThemeSettings from './ThemeSettings';
 import AvailabilityEditor from './AvailabilityEditor';
+import GoogleCalendarCard from './GoogleCalendarCard';
 
 interface SettingsData {
     defaultRules: {
@@ -104,6 +105,9 @@ export default function ProfessionalSettingsPage() {
             <div className="space-y-8">
                 {/* Theme Section */}
                 <ThemeSettings />
+
+                {/* Google Calendar Integration */}
+                <GoogleCalendarCard />
 
                 {/* Agenda Section */}
                 <section className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6 shadow-sm">

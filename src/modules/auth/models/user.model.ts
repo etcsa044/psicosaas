@@ -15,6 +15,15 @@ export interface IUser extends Document {
     };
     isActive: boolean;
     lastLoginAt?: Date;
+    googleIntegration?: {
+        connected: boolean;
+        email?: string;
+        refreshToken?: string;
+        accessToken?: string;
+        tokenExpiry?: Date;
+        autoMeet?: boolean;
+        calendarId?: string;
+    };
 }
 
 const UserSchema = new Schema<IUser>(
@@ -45,6 +54,15 @@ const UserSchema = new Schema<IUser>(
         },
         isActive: { type: Boolean, default: true },
         lastLoginAt: { type: Date },
+        googleIntegration: {
+            connected: { type: Boolean, default: false },
+            email: { type: String },
+            refreshToken: { type: String, select: false },
+            accessToken: { type: String, select: false },
+            tokenExpiry: { type: Date },
+            autoMeet: { type: Boolean, default: true },
+            calendarId: { type: String, default: 'primary' },
+        },
     },
     { timestamps: true }
 );

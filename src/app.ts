@@ -23,6 +23,7 @@ import botWebhookRoutes from '@modules/bot/bot.routes';
 import professionalSettingsRoutes from '@modules/professional-settings/professionalSettings.routes';
 import feedbackRoutes from '@modules/feedback/feedback.routes';
 import availabilityRoutes from '@modules/availability/availability.routes';
+import googleCalendarRoutes from '@modules/google-calendar/googleCalendar.routes';
 
 const app = express();
 
@@ -85,6 +86,7 @@ app.use('/api/bot', botWebhookRoutes);
 app.use('/api/professional-settings', professionalSettingsRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/availability', availabilityRoutes);
+app.use('/api/integrations/google', googleCalendarRoutes);
 
 // ── 404 handler ──
 app.use((_req, res) => {

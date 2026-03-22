@@ -6,6 +6,7 @@ import Schedule, { ISchedule } from './models/schedule.model';
 import { NotFoundError, ConflictError, ValidationError, ForbiddenError } from '@shared/errors/AppError';
 import { parsePaginationQuery, buildPaginationResult, PaginationResult } from '@shared/utils/pagination';
 import { logAuditEvent } from '@shared/services/entityAuditLog.service';
+import { googleCalendarService } from '@modules/google-calendar/googleCalendar.service';
 import { Types } from 'mongoose';
 
 export class AppointmentService {
@@ -140,6 +141,22 @@ export class AppointmentService {
 
         // Fire-and-forget audit
         logAuditEvent(tenantId, 'Appointment', appointment._id as Types.ObjectId, 'CREATE', userId);
+
+        // Fire-and-forget: Sync to Google Calendar
+        (async () => {
+            try {
+                const patientDoc = await Patient.findById(input.patientId).select('personalInfo.email personalInfo.firstName personalInfo.lastName').lean() as any;
+                const patientEmail = patientDoc?.personalInfo?.email;
+                const patientName = `${patientDoc?.personalInfo?.firstName || ''} ${patientDoc?.personalInfo?.lastName || ''}`.trim();
+                await googleCalendarService.createEvent(
+                    professionalId,
+                    { ...appointment.toObject(), patientName },
+                    patientEmail
+                );
+            } catch (gcError) {
+                // Non-blocking — Google Calendar sync failure should never abort appointment creation
+            }
+        })();
 
         // Attach warning as transient property (not persisted)
         const result = appointment.toObject() as any;
