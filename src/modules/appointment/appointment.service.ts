@@ -212,6 +212,20 @@ export class AppointmentService {
             field: 'status', from: oldStatus, to: status,
         });
 
+        // Fire-and-forget: Sync cancellation to Google Calendar
+        if (status === 'cancelled' && (appointment as any).googleEventId) {
+            (async () => {
+                try {
+                    await googleCalendarService.deleteEvent(
+                        appointment.professionalId,
+                        (appointment as any).googleEventId
+                    );
+                } catch (gcError) {
+                    logger.error('Google Calendar error during status cancellation', { error: gcError, appointmentId: appointment._id });
+                }
+            })();
+        }
+
         const result = appointment.toJSON() as any;
 
         if (status === 'cancelled') {
@@ -257,6 +271,20 @@ export class AppointmentService {
             field: 'status', from: oldStatus, to: 'cancelled', source, reason,
         });
 
+        // Fire-and-forget: Sync cancellation to Google Calendar
+        if ((appointment as any).googleEventId) {
+            (async () => {
+                try {
+                    await googleCalendarService.deleteEvent(
+                        appointment.professionalId,
+                        (appointment as any).googleEventId
+                    );
+                } catch (gcError) {
+                    logger.error('Google Calendar error during appointment cancellation', { error: gcError, appointmentId: appointment._id });
+                }
+            })();
+        }
+
         const result = appointment.toJSON() as any;
 
         // Check cancellation history to return a warning if this cancellation crossed the threshold
@@ -284,6 +312,20 @@ export class AppointmentService {
         await (appointment as any).softDelete(userId.toString());
 
         logAuditEvent(tenantId, 'Appointment', appointment._id as Types.ObjectId, 'DELETE', userId);
+
+        // Fire-and-forget: Sync deletion to Google Calendar
+        if ((appointment as any).googleEventId) {
+            (async () => {
+                try {
+                    await googleCalendarService.deleteEvent(
+                        appointment.professionalId,
+                        (appointment as any).googleEventId
+                    );
+                } catch (gcError) {
+                    logger.error('Google Calendar error during appointment deletion', { error: gcError, appointmentId: appointment._id });
+                }
+            })();
+        }
     }
 
     async update(tenantId: string, id: string, input: any, userId: Types.ObjectId): Promise<IAppointment> {
@@ -348,6 +390,21 @@ export class AppointmentService {
         logAuditEvent(tenantId, 'Appointment', appointment._id as Types.ObjectId, 'UPDATE', userId, {
             field: 'schedule', from: oldStartAt.toISOString(), to: startAt.toISOString(),
         });
+
+        // Fire-and-forget: Sync reschedule to Google Calendar
+        if ((appointment as any).googleEventId) {
+            (async () => {
+                try {
+                    await googleCalendarService.updateEvent(
+                        appointment.professionalId,
+                        (appointment as any).googleEventId,
+                        { startAt, endAt }
+                    );
+                } catch (gcError) {
+                    logger.error('Google Calendar error during appointment reschedule', { error: gcError, appointmentId: appointment._id });
+                }
+            })();
+        }
 
         return appointment;
     }
