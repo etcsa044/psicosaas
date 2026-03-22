@@ -296,16 +296,10 @@ export function AgendaDashboard() {
                             <>
                                 {/* Mobile View */}
                                 <div className="block lg:hidden h-full">
-                                    <MobileAgendaView
-                                        appointments={agenda?.days.flatMap(d => d.slots.filter(s => s.status !== 'available').map(s => ({
-                                            ...s,
-                                            startTime: s.startAt,
-                                            endTime: s.endAt,
-                                            patientName: s.patientName || 'Paciente',
-                                        }))) || []}
-                                        onNewTurno={(date) => {
-                                            const slot: Slot = { startAt: date.toISOString(), endAt: new Date(date.getTime() + 60 * 60000).toISOString(), status: 'available' };
-                                            handleEmptySlotClick(slot);
+                                <MobileAgendaView
+                                        days={agenda?.days || []}
+                                        onNewTurno={(slot) => {
+                                            handleEmptySlotClick(slot as Slot);
                                         }}
                                         onStatusChange={async (id, s) => {
                                             // TODO trigger modal or reschedule api

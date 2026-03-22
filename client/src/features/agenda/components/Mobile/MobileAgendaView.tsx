@@ -6,9 +6,25 @@ import TurnoActionSheet from './TurnoActionSheet';
 import MobileMonthView from './MobileMonthView';
 import { Plus, ChevronLeft, ChevronRight, CalendarDays, Calendar } from 'lucide-react';
 
+interface SlotData {
+    startAt: string;
+    endAt: string;
+    status: 'available' | 'occupied' | 'blocked';
+    appointmentId?: string;
+    patientName?: string;
+    patientType?: string;
+    isRecurring?: boolean;
+}
+
+interface DayData {
+    date: string;
+    slots: SlotData[];
+}
+
 interface MobileAgendaViewProps {
-    appointments: any[];
-    onNewTurno?: (date: Date) => void;
+    /** Full backend days with ALL slots (available + occupied) */
+    days: DayData[];
+    onNewTurno?: (slot: { startAt: string; endAt: string; status: 'available' }) => void;
     onStatusChange?: (id: string, newStatus: string) => void;
     onCancel?: (id: string, source: 'PATIENT' | 'PROFESSIONAL' | 'SYSTEM', reason: string, mode?: 'single' | 'forward' | 'all') => void;
     onDelete?: (id: string, mode?: 'single' | 'forward' | 'all') => void;
@@ -25,7 +41,7 @@ type MobileView = 'day' | 'month';
 
 const MONTH_NAMES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
-export default function MobileAgendaView({ appointments, onNewTurno, onStatusChange, onCancel, onDelete }: MobileAgendaViewProps) {
+export default function MobileAgendaView({ days, onNewTurno, onStatusChange, onCancel, onDelete }: MobileAgendaViewProps) {
     const todayUTC = useMemo(() => {
         const now = new Date();
         return new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
@@ -46,37 +62,24 @@ export default function MobileAgendaView({ appointments, onNewTurno, onStatusCha
         });
     }, [selectedDate]);
 
-    // Filter appointments for selected date (UTC comparison)
-    const dayAppointments = useMemo(() => {
-        return appointments.filter(a => isSameUTCDay(new Date(a.startTime), selectedDate))
-            .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
-    }, [appointments, selectedDate]);
+    // Find the backend day matching the selected date — use real slots from the backend
+    const selectedDaySlots = useMemo(() => {
+        const matchingDay = days.find(d => {
+            const dayDate = new Date(d.date);
+            return isSameUTCDay(dayDate, selectedDate);
+        });
+        return matchingDay?.slots || [];
+    }, [days, selectedDate]);
 
-    // Generate timeline slots using UTC hours (08:00 to 18:00)
-    const timelineSlots = useMemo(() => {
-        const slots = [];
-        for (let i = 8; i <= 18; i++) {
-            const slotTime = new Date(Date.UTC(
-                selectedDate.getUTCFullYear(),
-                selectedDate.getUTCMonth(),
-                selectedDate.getUTCDate(),
-                i, 0, 0, 0
-            ));
-
-            const slotApps = dayAppointments.filter(a => {
-                const startHour = new Date(a.startTime).getUTCHours();
-                return startHour === i;
-            });
-
-            slots.push({
-                hour: i,
-                timeLabel: `${i.toString().padStart(2, '0')}:00`,
-                dateObj: slotTime,
-                appointments: slotApps
-            });
-        }
-        return slots;
-    }, [selectedDate, dayAppointments]);
+    // Flatten all occupied appointments for the month view
+    const allAppointments = useMemo(() => {
+        return days.flatMap(d => d.slots.filter(s => s.status === 'occupied').map(s => ({
+            ...s,
+            startTime: s.startAt,
+            endTime: s.endAt,
+            patientName: s.patientName || 'Paciente',
+        })));
+    }, [days]);
 
     const monthLabel = `${MONTH_NAMES[selectedDate.getUTCMonth()]} ${selectedDate.getUTCFullYear()}`;
 
@@ -93,7 +96,7 @@ export default function MobileAgendaView({ appointments, onNewTurno, onStatusCha
 
     const handleMonthDaySelect = (date: Date) => {
         setSelectedDate(date);
-        setMobileView('day'); // Switch to day view on day tap
+        setMobileView('day');
     };
 
     return (
@@ -105,7 +108,6 @@ export default function MobileAgendaView({ appointments, onNewTurno, onStatusCha
                     <h2 className="text-xl font-bold text-gray-900 dark:text-white">
                         Mi Agenda
                     </h2>
-                    {/* View Toggle */}
                     <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-xl p-0.5">
                         <button
                             onClick={() => setMobileView('day')}
@@ -189,53 +191,79 @@ export default function MobileAgendaView({ appointments, onNewTurno, onStatusCha
             {mobileView === 'month' ? (
                 <div className="flex-1 overflow-y-auto">
                     <MobileMonthView
-                        appointments={appointments}
+                        appointments={allAppointments}
                         selectedDate={selectedDate}
                         onSelectDate={handleMonthDaySelect}
                     />
                 </div>
             ) : (
-                /* Day Timeline Body */
-                <div className="flex-1 px-4 py-6 space-y-6">
-                    {timelineSlots.map((slot) => (
-                        <div key={slot.hour} className="flex gap-4 relative">
-                            {/* Time Column */}
-                            <div className="w-12 flex-shrink-0 text-right">
-                                <span className="text-xs font-bold text-gray-400 dark:text-gray-600 sticky top-24">
-                                    {slot.timeLabel}
-                                </span>
-                            </div>
+                /* Day Timeline Body — uses REAL backend slots */
+                <div className="flex-1 px-4 py-6 space-y-4">
+                    {selectedDaySlots.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center h-full text-gray-400 dark:text-gray-500 py-16">
+                            <CalendarDays size={48} className="mb-4 opacity-40" />
+                            <p className="text-base font-medium">Sin disponibilidad para este día</p>
+                            <p className="text-sm mt-1">Seleccioná otro día en el calendario</p>
+                        </div>
+                    ) : (
+                        selectedDaySlots.map((slot, idx) => {
+                            const startTime = new Date(slot.startAt);
+                            const timeLabel = `${startTime.getUTCHours().toString().padStart(2, '0')}:${startTime.getUTCMinutes().toString().padStart(2, '0')}`;
 
-                            {/* Content Column */}
-                            <div className="flex-1 relative pb-6 border-l-2 border-dashed border-gray-200 dark:border-gray-800 focus-within:border-indigo-200 dark:focus-within:border-indigo-900/50 pl-4 min-h-[4rem]">
-                                <div className="absolute top-2 -left-1 w-2 h-2 rounded-full bg-gray-200 dark:bg-gray-800" />
+                            return (
+                                <div key={idx} className="flex gap-4 relative">
+                                    {/* Time Column */}
+                                    <div className="w-12 flex-shrink-0 text-right">
+                                        <span className="text-xs font-bold text-gray-400 dark:text-gray-600">
+                                            {timeLabel}
+                                        </span>
+                                    </div>
 
-                                {slot.appointments.length > 0 ? (
-                                    <div className="space-y-4">
-                                        {slot.appointments.map(app => (
-                                            <div key={app._id || app.appointmentId} className="-mt-1">
+                                    {/* Content Column */}
+                                    <div className="flex-1 relative pb-2 border-l-2 border-dashed border-gray-200 dark:border-gray-800 pl-4 min-h-[3.5rem]">
+                                        <div className="absolute top-2 -left-1 w-2 h-2 rounded-full bg-gray-200 dark:bg-gray-800" />
+
+                                        {slot.status === 'occupied' ? (
+                                            <div className="-mt-1">
                                                 <TurnoMobileCard
-                                                    appointment={app}
+                                                    appointment={{
+                                                        ...slot,
+                                                        _id: slot.appointmentId,
+                                                        startTime: slot.startAt,
+                                                        endTime: slot.endAt,
+                                                        patientName: slot.patientName || 'Paciente',
+                                                    }}
                                                     onStatusChange={onStatusChange}
-                                                    onClick={() => setActionSheetApp(app)}
+                                                    onClick={() => setActionSheetApp({
+                                                        ...slot,
+                                                        _id: slot.appointmentId,
+                                                        startTime: slot.startAt,
+                                                        endTime: slot.endAt,
+                                                        patientName: slot.patientName || 'Paciente',
+                                                    })}
                                                 />
                                             </div>
-                                        ))}
+                                        ) : slot.status === 'blocked' ? (
+                                            <div className="-mt-1 flex items-center gap-2 pl-4 h-[3rem] text-gray-400 dark:text-gray-500 text-sm font-medium">
+                                                Bloqueado
+                                            </div>
+                                        ) : (
+                                            /* Available slot — uses real backend start/end times */
+                                            <button
+                                                onClick={() => onNewTurno?.({ startAt: slot.startAt, endAt: slot.endAt, status: 'available' })}
+                                                className="w-full -mt-1 h-full min-h-[3rem] flex items-center gap-2 pl-4 rounded-xl border border-dashed border-transparent hover:border-indigo-300 dark:hover:border-indigo-800 hover:bg-indigo-50/50 dark:hover:bg-indigo-900/10 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors group cursor-pointer"
+                                            >
+                                                <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900/30 flex items-center justify-center transition-colors">
+                                                    <Plus size={16} />
+                                                </div>
+                                                <span className="text-sm font-medium">Disponible</span>
+                                            </button>
+                                        )}
                                     </div>
-                                ) : (
-                                    <button
-                                        onClick={() => onNewTurno?.(slot.dateObj)}
-                                        className="w-full -mt-1 h-full min-h-[3.5rem] flex items-center gap-2 pl-4 rounded-xl border border-dashed border-transparent hover:border-indigo-300 dark:hover:border-indigo-800 hover:bg-indigo-50/50 dark:hover:bg-indigo-900/10 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors group cursor-pointer"
-                                    >
-                                        <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900/30 flex items-center justify-center transition-colors">
-                                            <Plus size={16} />
-                                        </div>
-                                        <span className="text-sm font-medium">Disponible</span>
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                    ))}
+                                </div>
+                            );
+                        })
+                    )}
                 </div>
             )}
 

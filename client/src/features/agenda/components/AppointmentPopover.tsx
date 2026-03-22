@@ -1,10 +1,17 @@
 import { Slot } from '../types/agenda.types';
-import { X, CalendarX, Trash2, AlertCircle, Ban } from 'lucide-react';
+import { X, CalendarX, Trash2, AlertCircle, Ban, ChevronLeft } from 'lucide-react';
 import { useDeleteAppointment } from '../hooks/useDeleteAppointment';
 import { useCancelAppointment } from '../hooks/useCancelAppointment';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import RecurringEditDialog from './RecurringEditDialog';
+
+const CANCEL_REASONS = [
+    { value: 'patient_notice', label: 'Paciente avisó', source: 'PATIENT' as const },
+    { value: 'professional', label: 'Problema del profesional', source: 'PROFESSIONAL' as const },
+    { value: 'no_show', label: 'No asistió', source: 'PATIENT' as const },
+    { value: 'rescheduled', label: 'Reprogramado', source: 'SYSTEM' as const },
+];
 
 interface AppointmentPopoverProps {
     slot: Slot;
@@ -16,30 +23,44 @@ export function AppointmentPopover({ slot, onClose }: AppointmentPopoverProps) {
     const { mutateAsync: cancelAppointment, isPending: isCancelling } = useCancelAppointment();
     const [confirmingAction, setConfirmingAction] = useState<'cancel' | 'delete' | null>(null);
     const [recurringAction, setRecurringAction] = useState<'cancel' | 'delete' | null>(null);
+    const [showCancelReasons, setShowCancelReasons] = useState(false);
+    const [selectedReason, setSelectedReason] = useState<typeof CANCEL_REASONS[0] | null>(null);
 
     if (!slot.appointmentId) return null;
 
     const startHour = new Date(slot.startAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
     const endHour = new Date(slot.endAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
 
-    // When user confirms an action from the inline confirmation panel
-    const handleConfirmedAction = (action: 'cancel' | 'delete') => {
+    // When user picks a cancel reason
+    const handleCancelReasonSelected = (reason: typeof CANCEL_REASONS[0]) => {
+        setSelectedReason(reason);
+        setShowCancelReasons(false);
+
         if (slot.isRecurring) {
-            // Show the recurring edit dialog to ask "single / forward / all"
-            setRecurringAction(action);
-            setConfirmingAction(null);
+            setRecurringAction('cancel');
         } else {
-            // Non-recurring: execute immediately with 'single' mode
-            if (action === 'cancel') executeCancel('single');
-            else executeDelete('single');
+            executeCancel('single', reason);
         }
     };
 
-    const executeCancel = async (mode: 'single' | 'forward' | 'all') => {
+    // When user confirms delete from the inline confirmation panel
+    const handleConfirmedDelete = () => {
+        if (slot.isRecurring) {
+            setRecurringAction('delete');
+            setConfirmingAction(null);
+        } else {
+            executeDelete('single');
+        }
+    };
+
+    const executeCancel = async (mode: 'single' | 'forward' | 'all', reason?: typeof CANCEL_REASONS[0]) => {
+        const r = reason || selectedReason;
         try {
             const response = await cancelAppointment({
                 appointmentId: slot.appointmentId!,
                 recurringMode: mode,
+                source: r?.source || 'PROFESSIONAL',
+                reason: r?.label || 'Cancelado por el profesional',
             });
 
             const warning = response?.data?._cancellationWarning;
@@ -54,6 +75,7 @@ export function AppointmentPopover({ slot, onClose }: AppointmentPopoverProps) {
             }
 
             setRecurringAction(null);
+            setSelectedReason(null);
             onClose();
         } catch (error: any) {
             console.error("❌ Error cancelando turno:", error);
@@ -125,18 +147,31 @@ export function AppointmentPopover({ slot, onClose }: AppointmentPopoverProps) {
                             </p>
                         </div>
 
-                        {confirmingAction ? (
-                            <div className={`flex flex-col gap-2 p-3 border rounded-lg ${confirmingAction === 'cancel'
-                                ? 'bg-orange-50 dark:bg-orange-900/10 border-orange-200 dark:border-orange-900/50'
-                                : 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-900/50'
-                                }`}>
-                                <p className={`text-sm font-medium text-center mb-1 ${confirmingAction === 'cancel'
-                                    ? 'text-orange-800 dark:text-orange-300'
-                                    : 'text-red-800 dark:text-red-300'
-                                    }`}>
-                                    {confirmingAction === 'cancel'
-                                        ? '¿Cancelar este turno? El registro se conserva en el historial.'
-                                        : '¿Eliminar este turno? Se remueve de todas las vistas.'}
+                        {showCancelReasons ? (
+                            /* Cancel Reasons Sub-menu */
+                            <div className="flex flex-col gap-2 p-3 bg-orange-50 dark:bg-orange-900/10 border border-orange-200 dark:border-orange-900/50 rounded-lg">
+                                <button
+                                    onClick={() => setShowCancelReasons(false)}
+                                    className="flex items-center gap-1 text-sm text-indigo-600 dark:text-indigo-400 font-medium mb-1"
+                                >
+                                    <ChevronLeft size={16} /> Volver
+                                </button>
+                                <p className="text-sm font-semibold text-orange-800 dark:text-orange-300 mb-1">¿Cuál es el motivo?</p>
+                                {CANCEL_REASONS.map((reason) => (
+                                    <button
+                                        key={reason.value}
+                                        onClick={() => handleCancelReasonSelected(reason)}
+                                        disabled={isPending}
+                                        className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors border border-orange-100 dark:border-orange-900/40 text-sm font-medium text-gray-800 dark:text-gray-200 disabled:opacity-50"
+                                    >
+                                        {reason.label}
+                                    </button>
+                                ))}
+                            </div>
+                        ) : confirmingAction === 'delete' ? (
+                            <div className="flex flex-col gap-2 p-3 bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/50 rounded-lg">
+                                <p className="text-sm font-medium text-center mb-1 text-red-800 dark:text-red-300">
+                                    ¿Eliminar este turno? Se remueve de todas las vistas.
                                 </p>
                                 <div className="flex gap-2">
                                     <button
@@ -147,23 +182,18 @@ export function AppointmentPopover({ slot, onClose }: AppointmentPopoverProps) {
                                         Volver
                                     </button>
                                     <button
-                                        onClick={() => handleConfirmedAction(confirmingAction)}
+                                        onClick={handleConfirmedDelete}
                                         disabled={isPending}
-                                        className={`flex-1 px-3 py-1.5 text-white rounded-md text-sm font-medium transition flex items-center justify-center gap-1 disabled:opacity-50 ${confirmingAction === 'cancel'
-                                            ? 'bg-orange-600 hover:bg-orange-700'
-                                            : 'bg-red-600 hover:bg-red-700'
-                                            }`}
+                                        className="flex-1 px-3 py-1.5 text-white rounded-md text-sm font-medium transition flex items-center justify-center gap-1 disabled:opacity-50 bg-red-600 hover:bg-red-700"
                                     >
-                                        {isPending
-                                            ? (confirmingAction === 'cancel' ? 'Cancelando...' : 'Eliminando...')
-                                            : (confirmingAction === 'cancel' ? 'Sí, cancelar' : 'Sí, eliminar')}
+                                        {isPending ? 'Eliminando...' : 'Sí, eliminar'}
                                     </button>
                                 </div>
                             </div>
                         ) : (
                             <>
                                 <button
-                                    onClick={() => setConfirmingAction('cancel')}
+                                    onClick={() => setShowCancelReasons(true)}
                                     className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-orange-200 dark:border-orange-800 text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 font-medium rounded-lg transition-colors"
                                 >
                                     <Ban size={18} />
@@ -186,7 +216,10 @@ export function AppointmentPopover({ slot, onClose }: AppointmentPopoverProps) {
             <RecurringEditDialog
                 open={!!recurringAction}
                 onOpenChange={(isOpen) => {
-                    if (!isOpen) setRecurringAction(null);
+                    if (!isOpen) {
+                        setRecurringAction(null);
+                        setSelectedReason(null);
+                    }
                 }}
                 actionType={recurringAction || 'edit'}
                 onConfirm={(mode) => {
