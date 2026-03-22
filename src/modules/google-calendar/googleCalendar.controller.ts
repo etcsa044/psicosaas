@@ -17,14 +17,16 @@ export const googleCalendarController = {
                 return res.status(400).json({ status: 'error', message: 'Token is required as query parameter' });
             }
 
-            // Decode the JWT to extract userId
+            // Decode the JWT to extract userId and tenantId
             const decoded = jwt.verify(token, config.jwt.accessSecret) as any;
             const userId = decoded._id || decoded.sub;
-            if (!userId) {
-                return res.status(401).json({ status: 'error', message: 'Invalid token' });
+            const tenantId = decoded.tenantId;
+
+            if (!userId || !tenantId) {
+                return res.status(401).json({ status: 'error', message: 'Invalid token: missing userId or tenantId' });
             }
 
-            const authUrl = googleCalendarService.getAuthUrl(userId);
+            const authUrl = googleCalendarService.getAuthUrl(userId, tenantId);
             res.redirect(authUrl);
         } catch (error) {
             next(error);
@@ -38,13 +40,21 @@ export const googleCalendarController = {
     async callback(req: IAuthRequest, res: Response, next: NextFunction) {
         try {
             const code = req.query.code as string;
-            const userId = req.query.state as string;
+            const statePayload = req.query.state as string;
 
-            if (!code || !userId) {
+            if (!code || !statePayload) {
                 return res.status(400).json({ status: 'error', message: 'Missing code or state parameter' });
             }
 
-            await googleCalendarService.handleCallback(code, userId);
+            // Decode the state parameter
+            const decodedState = JSON.parse(Buffer.from(statePayload, 'base64').toString('utf8'));
+            const { userId, tenantId } = decodedState;
+
+            if (!userId || !tenantId) {
+                return res.status(400).json({ status: 'error', message: 'Invalid state parameter' });
+            }
+
+            await googleCalendarService.handleCallback(code, userId, tenantId);
 
             // Redirect back to frontend settings page with a success flag
             const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';

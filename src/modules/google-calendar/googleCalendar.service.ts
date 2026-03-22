@@ -21,22 +21,23 @@ function getOAuth2Client(): OAuth2Client {
 export const googleCalendarService = {
     /**
      * Generate the Google OAuth consent URL for a professional.
-     * We store the userId in the `state` param so we know who to associate on callback.
+     * We store the userId and tenantId in the `state` param (base64) so we know who to associate on callback.
      */
-    getAuthUrl(userId: string): string {
+    getAuthUrl(userId: string, tenantId: string): string {
         const oauth2Client = getOAuth2Client();
+        const statePayload = Buffer.from(JSON.stringify({ userId, tenantId })).toString('base64');
         return oauth2Client.generateAuthUrl({
             access_type: 'offline',
             prompt: 'consent',
             scope: SCOPES,
-            state: userId,
+            state: statePayload,
         });
     },
 
     /**
      * Exchange the authorization code for tokens and persist them on the User document.
      */
-    async handleCallback(code: string, userId: string): Promise<void> {
+    async handleCallback(code: string, userId: string, tenantId: string): Promise<void> {
         const oauth2Client = getOAuth2Client();
         const { tokens } = await oauth2Client.getToken(code);
 
@@ -46,15 +47,18 @@ export const googleCalendarService = {
         const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client });
         const { data: userInfo } = await oauth2.userinfo.get();
 
-        await User.findByIdAndUpdate(userId, {
-            $set: {
-                'googleIntegration.connected': true,
-                'googleIntegration.email': userInfo.email,
-                'googleIntegration.refreshToken': tokens.refresh_token,
-                'googleIntegration.accessToken': tokens.access_token,
-                'googleIntegration.tokenExpiry': tokens.expiry_date ? new Date(tokens.expiry_date) : undefined,
-            },
-        });
+        await User.findOneAndUpdate(
+            { _id: userId, tenantId },
+            {
+                $set: {
+                    'googleIntegration.connected': true,
+                    'googleIntegration.email': userInfo.email,
+                    'googleIntegration.refreshToken': tokens.refresh_token,
+                    'googleIntegration.accessToken': tokens.access_token,
+                    'googleIntegration.tokenExpiry': tokens.expiry_date ? new Date(tokens.expiry_date) : undefined,
+                },
+            }
+        );
 
         logger.info(`Google Calendar connected for user ${userId} (${userInfo.email})`);
     },
