@@ -159,29 +159,29 @@ export class RecurringAppointmentService {
 
         if (existingApp) return true;
 
-        // 2. Check professional schedule/work hours
+        // 2. Check professional schedule/work hours (permissive: if no schedule, allow)
         try {
             const dayOfWeek = startAt.getUTCDay();
             const schedule = await Schedule.findOne({
                 tenantId,
                 professionalId,
                 dayOfWeek,
-                isActive: true,
             });
 
-            if (!schedule) return true; // Professional doesn't work this day
+            // If no schedule exists for this day, allow the appointment (don't block)
+            if (!schedule) return false;
+
+            // If the schedule exists but is explicitly inactive, block
+            if (!schedule.isActive) return true;
 
             // Check vacations
             const isVacation = schedule.vacations?.some(
                 (v) => startAt >= v.startDate && startAt <= v.endDate
             );
             if (isVacation) return true;
-
-            // Simplified: we could check exact startTime/endTime, but for now
-            // just having a schedule active for this day and no overlapping appointments (checked above)
-            // is a reasonable first-pass validation.
         } catch {
-            return true; // Assume blocked on error
+            // On error, allow rather than block
+            return false;
         }
 
         return false;
