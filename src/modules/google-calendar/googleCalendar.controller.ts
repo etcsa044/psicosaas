@@ -72,7 +72,7 @@ export const googleCalendarController = {
     async status(req: IAuthRequest, res: Response, next: NextFunction) {
         try {
             const userId = req.user!._id;
-            const user = await User.findById(userId).select('googleIntegration.connected googleIntegration.email googleIntegration.autoMeet');
+            const user = await User.findOne({ _id: userId, tenantId: req.tenantId }).select('googleIntegration.connected googleIntegration.email googleIntegration.autoMeet');
 
             res.status(200).json({
                 status: 'success',
@@ -93,7 +93,7 @@ export const googleCalendarController = {
     async disconnect(req: IAuthRequest, res: Response, next: NextFunction) {
         try {
             const userId = req.user!._id;
-            await googleCalendarService.disconnect(userId);
+            await googleCalendarService.disconnect(userId, req.tenantId!);
 
             res.status(200).json({ status: 'success', message: 'Google Calendar desconectado' });
         } catch (error) {
@@ -112,7 +112,7 @@ export const googleCalendarController = {
             const update: any = {};
             if (typeof autoMeet === 'boolean') update['googleIntegration.autoMeet'] = autoMeet;
 
-            await User.findByIdAndUpdate(userId, { $set: update });
+            await User.findOneAndUpdate({ _id: userId, tenantId: req.tenantId }, { $set: update });
 
             res.status(200).json({ status: 'success', message: 'Configuración actualizada' });
         } catch (error) {

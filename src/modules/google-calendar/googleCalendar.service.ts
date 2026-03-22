@@ -67,7 +67,9 @@ export const googleCalendarService = {
      * Build an authenticated OAuth2 client from a user's stored tokens.
      */
     async getAuthenticatedClient(userId: string | Types.ObjectId): Promise<OAuth2Client | null> {
-        const user = await User.findById(userId).select('+googleIntegration.refreshToken +googleIntegration.accessToken');
+        const user = await User.findById(userId)
+            .select('+googleIntegration.refreshToken +googleIntegration.accessToken')
+            .setOptions({ _skipTenantCheck: true } as any);
         if (!user?.googleIntegration?.connected || !user.googleIntegration.refreshToken) {
             return null;
         }
@@ -85,7 +87,7 @@ export const googleCalendarService = {
             if (newTokens.access_token) update['googleIntegration.accessToken'] = newTokens.access_token;
             if (newTokens.expiry_date) update['googleIntegration.tokenExpiry'] = new Date(newTokens.expiry_date);
             if (newTokens.refresh_token) update['googleIntegration.refreshToken'] = newTokens.refresh_token;
-            await User.findByIdAndUpdate(userId, { $set: update });
+            await User.findByIdAndUpdate(userId, { $set: update }).setOptions({ _skipTenantCheck: true } as any);
         });
 
         return oauth2Client;
@@ -106,7 +108,7 @@ export const googleCalendarService = {
 
         const calendar = google.calendar({ version: 'v3', auth });
 
-        const user = await User.findById(professionalId);
+        const user = await User.findById(professionalId).setOptions({ _skipTenantCheck: true } as any);
         const calendarId = user?.googleIntegration?.calendarId || 'primary';
         const shouldCreateMeet = autoMeet ?? user?.googleIntegration?.autoMeet ?? true;
 
@@ -183,7 +185,7 @@ export const googleCalendarService = {
         if (!auth) return;
 
         const calendar = google.calendar({ version: 'v3', auth });
-        const user = await User.findById(professionalId);
+        const user = await User.findById(professionalId).setOptions({ _skipTenantCheck: true } as any);
         const calendarId = user?.googleIntegration?.calendarId || 'primary';
 
         const patch: calendar_v3.Schema$Event = {};
@@ -221,7 +223,7 @@ export const googleCalendarService = {
         if (!auth) return;
 
         const calendar = google.calendar({ version: 'v3', auth });
-        const user = await User.findById(professionalId);
+        const user = await User.findById(professionalId).setOptions({ _skipTenantCheck: true } as any);
         const calendarId = user?.googleIntegration?.calendarId || 'primary';
 
         try {
@@ -239,16 +241,19 @@ export const googleCalendarService = {
     /**
      * Disconnect Google Calendar integration for a user.
      */
-    async disconnect(userId: string | Types.ObjectId): Promise<void> {
-        await User.findByIdAndUpdate(userId, {
-            $set: {
-                'googleIntegration.connected': false,
-                'googleIntegration.refreshToken': null,
-                'googleIntegration.accessToken': null,
-                'googleIntegration.email': null,
-                'googleIntegration.tokenExpiry': null,
-            },
-        });
+    async disconnect(userId: string | Types.ObjectId, tenantId: string): Promise<void> {
+        await User.findOneAndUpdate(
+            { _id: userId, tenantId },
+            {
+                $set: {
+                    'googleIntegration.connected': false,
+                    'googleIntegration.refreshToken': null,
+                    'googleIntegration.accessToken': null,
+                    'googleIntegration.email': null,
+                    'googleIntegration.tokenExpiry': null,
+                },
+            }
+        );
         logger.info(`Google Calendar disconnected for user ${userId}`);
     },
 };
