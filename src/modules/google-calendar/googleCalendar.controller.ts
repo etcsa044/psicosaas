@@ -49,7 +49,8 @@ export const googleCalendarController = {
             // Redirect back to frontend settings page with a success flag
             const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
             res.redirect(`${frontendUrl}/settings?google=success`);
-        } catch (error) {
+        } catch (error: any) {
+            console.error('[Google OAuth Error]', error?.response?.data || error.message || error);
             const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
             res.redirect(`${frontendUrl}/settings?google=error`);
         }
