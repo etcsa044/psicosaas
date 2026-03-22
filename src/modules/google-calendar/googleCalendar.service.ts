@@ -162,13 +162,13 @@ export const googleCalendarService = {
             if (googleEventId) {
                 const updateFields: any = { googleEventId };
                 if (meetLink) updateFields.meetingUrl = meetLink;
-                await Appointment.findByIdAndUpdate(appointment._id, { $set: updateFields });
+                await Appointment.findByIdAndUpdate(appointment._id, { $set: updateFields }).setOptions({ _skipTenantCheck: true } as any);
             }
 
             logger.info(`Google Calendar event created: ${googleEventId}`);
             return googleEventId;
-        } catch (error) {
-            logger.error('Failed to create Google Calendar event', { error });
+        } catch (error: any) {
+            logger.error('Failed to create Google Calendar event', { error: error?.response?.data || error.message || error });
             return null;
         }
     },
