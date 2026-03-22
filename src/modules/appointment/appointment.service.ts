@@ -8,6 +8,7 @@ import { parsePaginationQuery, buildPaginationResult, PaginationResult } from '@
 import { logAuditEvent } from '@shared/services/entityAuditLog.service';
 import { googleCalendarService } from '@modules/google-calendar/googleCalendar.service';
 import { Types } from 'mongoose';
+import { logger } from '@config/logger';
 
 export class AppointmentService {
     async validateFrequencyPolicy(
@@ -145,7 +146,7 @@ export class AppointmentService {
         // Fire-and-forget: Sync to Google Calendar
         (async () => {
             try {
-                const patientDoc = await Patient.findById(input.patientId).select('personalInfo.email personalInfo.firstName personalInfo.lastName').lean() as any;
+                const patientDoc = await Patient.findOne({ _id: input.patientId, tenantId }).select('personalInfo.email personalInfo.firstName personalInfo.lastName').lean() as any;
                 const patientEmail = patientDoc?.personalInfo?.email;
                 const patientName = `${patientDoc?.personalInfo?.firstName || ''} ${patientDoc?.personalInfo?.lastName || ''}`.trim();
                 await googleCalendarService.createEvent(
@@ -154,7 +155,7 @@ export class AppointmentService {
                     patientEmail
                 );
             } catch (gcError) {
-                // Non-blocking — Google Calendar sync failure should never abort appointment creation
+                logger.error('Google Calendar error during appointment creation', { error: gcError, appointmentId: appointment._id });
             }
         })();
 
