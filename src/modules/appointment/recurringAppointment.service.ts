@@ -7,7 +7,7 @@ import { ConflictError, NotFoundError, ForbiddenError } from '@shared/errors/App
 import { logAuditEvent } from '@shared/services/entityAuditLog.service';
 import { addDays, addWeeks, addMonths, isBefore, isSameDay } from 'date-fns';
 import { googleCalendarService } from '../google-calendar/googleCalendar.service';
-import { logger } from '@shared/utils/logger';
+import { logger } from '@config/logger';
 
 const MAX_RECURRING_APPOINTMENTS = 120;
 
