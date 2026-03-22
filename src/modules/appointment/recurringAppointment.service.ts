@@ -48,12 +48,6 @@ export class RecurringAppointmentService {
         let parentAppointmentId: Types.ObjectId;
 
         if (parentConflict) {
-            skippedConflicts++;
-            // If parent has a conflict, we still need a "virtual" parent or we can create the first available as parent.
-            // For simplicity, we create the parent anyway but maybe marked as conflict? 
-            // Wait, if the parent has a conflict, we skip it. But we need a parent ID for the series.
-            // Let's create a generic parent but set its status to cancelled, or just throw an        if (parentConflict) {
-            skippedConflicts++;
             throw new ForbiddenError('El turno inicial tiene un conflicto. Por favor, elegí un horario disponible para comenzar la serie.');
         }
 
