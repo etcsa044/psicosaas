@@ -2,8 +2,9 @@
 
 import { Drawer } from 'vaul';
 import { useState, useMemo } from 'react';
-import { X, Search, Check, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, Search, Check, ChevronLeft, ChevronRight, UserPlus } from 'lucide-react';
 import { usePatients, PatientListItem } from '../../hooks/usePatients';
+import { QuickCreatePatientModal } from '../QuickCreatePatientModal';
 
 interface BottomSheetTurnoProps {
     open: boolean;
@@ -20,6 +21,7 @@ export default function BottomSheetTurno({ open, onOpenChange, initialDate, avai
     const [selectedType, setSelectedType] = useState('Primera sesión');
     const [isSaving, setIsSaving] = useState(false);
     const [selectedSlot, setSelectedSlot] = useState<{ startAt: string; endAt: string } | null>(null);
+    const [showCreatePatient, setShowCreatePatient] = useState(false);
 
     // Recurring State
     const [frequency, setFrequency] = useState<'none' | 'weekly' | 'biweekly' | 'monthly'>('none');
@@ -186,7 +188,7 @@ export default function BottomSheetTurno({ open, onOpenChange, initialDate, avai
 
                             {/* Patient Results Dropdown */}
                             {patientSearch.length > 0 && !selectedPatient && (
-                                <div className="mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg max-h-48 overflow-y-auto z-10">
+                                <div className="mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg max-h-64 overflow-y-auto z-10 flex flex-col">
                                     {patientsLoading ? (
                                         <div className="p-4 text-center text-sm text-gray-400">Buscando...</div>
                                     ) : patients.length === 0 ? (
@@ -196,7 +198,7 @@ export default function BottomSheetTurno({ open, onOpenChange, initialDate, avai
                                             <button
                                                 key={p._id}
                                                 onClick={() => handleSelectPatient(p)}
-                                                className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors border-b border-gray-50 dark:border-gray-800 last:border-0"
+                                                className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors border-b border-gray-50 dark:border-gray-800"
                                             >
                                                 <div>
                                                     <p className="text-sm font-medium text-gray-900 dark:text-white">
@@ -210,6 +212,15 @@ export default function BottomSheetTurno({ open, onOpenChange, initialDate, avai
                                             </button>
                                         ))
                                     )}
+                                    <div className="p-2 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 sticky bottom-0">
+                                        <button 
+                                            onClick={() => setShowCreatePatient(true)}
+                                            className="w-full py-2.5 flex items-center justify-center gap-2 text-sm font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors"
+                                        >
+                                            <UserPlus size={16} />
+                                            Crear Nuevo Paciente
+                                        </button>
+                                    </div>
                                 </div>
                             )}
 
@@ -308,6 +319,10 @@ export default function BottomSheetTurno({ open, onOpenChange, initialDate, avai
                     </div>
                 </Drawer.Content>
             </Drawer.Portal>
+
+            {showCreatePatient && (
+                <QuickCreatePatientModal onClose={() => setShowCreatePatient(false)} />
+            )}
         </Drawer.Root>
     );
 }

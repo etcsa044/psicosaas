@@ -6,6 +6,7 @@ import { api } from '@/lib/axios';
 import { Save, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ThemeSettings from './ThemeSettings';
+import AvailabilityEditor from './AvailabilityEditor';
 
 interface SettingsData {
     defaultRules: {
@@ -198,6 +199,9 @@ export default function ProfessionalSettingsPage() {
                         </div>
                     </div>
                 </section>
+
+                {/* Disponibilidad (Calendar Mirror) */}
+                <AvailabilityEditor />
 
                 {/* Save Button */}
                 <div className="flex justify-end">
