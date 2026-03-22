@@ -6,6 +6,7 @@ export interface Slot {
     patientName?: string;
     patientType?: string;
     appointmentType?: string;
+    modality?: 'in_person' | 'video_call';
     isRecurring?: boolean;
 }
 

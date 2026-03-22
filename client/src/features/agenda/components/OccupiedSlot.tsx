@@ -45,7 +45,10 @@ export function OccupiedSlot({ slot, onClick }: OccupiedSlotProps) {
             <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500 dark:bg-indigo-400"></div>
 
             <div className="flex justify-between items-start mb-1 pl-1">
-                <span className="font-bold text-gray-900 dark:text-gray-100 truncate w-full" title={slot.patientName}>{slot.patientName}</span>
+                <div className="flex items-center gap-1 w-full overflow-hidden">
+                    <span className="text-[10px]">{slot.modality === 'video_call' ? '💻' : '📍'}</span>
+                    <span className="font-bold text-gray-900 dark:text-gray-100 truncate w-full" title={slot.patientName}>{slot.patientName}</span>
+                </div>
             </div>
 
             <div className="flex justify-between items-end pl-1 mt-1">

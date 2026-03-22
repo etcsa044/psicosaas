@@ -42,7 +42,7 @@ export default function AvailabilityEditor() {
     const handleAddSlot = (dayOfWeek: number) => {
         setLocalPatterns(prev => [
             ...prev,
-            { dayOfWeek, startMinutes: 540, endMinutes: 1080, slotDuration: 45, bufferMinutes: 0 }
+            { dayOfWeek, startMinutes: 540, endMinutes: 1080, slotDuration: 45, bufferMinutes: 0, modality: 'in_person' }
         ]);
     };
 
@@ -132,6 +132,14 @@ export default function AvailabilityEditor() {
                                                     onChange={(e) => handleUpdateSlot(p.originalIndex, 'endMinutes', timeToMins(e.target.value))}
                                                     className="border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 px-2 py-1 text-sm focus:ring-1 focus:ring-indigo-500 dark:text-white"
                                                 />
+                                                <select
+                                                    value={p.modality || 'in_person'}
+                                                    onChange={(e) => handleUpdateSlot(p.originalIndex, 'modality', e.target.value)}
+                                                    className="border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 px-2 py-1 text-sm focus:ring-1 focus:ring-indigo-500 dark:text-gray-300"
+                                                >
+                                                    <option value="in_person">📍 Presencial</option>
+                                                    <option value="video_call">💻 Online</option>
+                                                </select>
                                                 <button
                                                     onClick={() => handleRemoveSlot(p.originalIndex)}
                                                     className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"

@@ -54,7 +54,8 @@ export default function TurnoMobileCard({ appointment, onStatusChange, onClick }
                 </div>
 
                 <div className="mt-1">
-                    <h3 className="text-base font-semibold text-gray-900 dark:text-white line-clamp-1">
+                    <h3 className="text-base font-semibold text-gray-900 dark:text-white line-clamp-1 flex items-center gap-1.5">
+                        <span className="text-sm">{appointment.modality === 'video_call' ? '💻' : '📍'}</span>
                         {appointment.patientName || 'Paciente Activo'}
                     </h3>
                     <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-1">

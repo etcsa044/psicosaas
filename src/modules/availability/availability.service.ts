@@ -26,6 +26,7 @@ export const availabilityService = {
             endMinutes: number;
             slotDuration?: number;
             bufferMinutes?: number;
+            modality?: 'in_person' | 'video_call';
         }>
     ) {
         // Soft delete all existing patterns
@@ -44,6 +45,7 @@ export const availabilityService = {
                 endMinutes: p.endMinutes,
                 slotDuration: p.slotDuration || 45,
                 bufferMinutes: p.bufferMinutes || 0,
+                modality: p.modality || 'in_person',
             }));
             await AvailabilityPattern.insertMany(newPatterns);
         }

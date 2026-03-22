@@ -15,6 +15,8 @@ interface Slot {
     patientName?: string;
     patientType?: string;
     isRecurring?: boolean;
+    appointmentType?: string;
+    modality?: 'in_person' | 'video_call';
 }
 
 interface DayAgenda {
@@ -99,11 +101,14 @@ export const generateAgendaSlots = async (
             effectivePeriods = exception.customSlots;
         } else {
             // Find standard Pattern for this Day Of Week
-            const pattern = patterns.find(p => p.dayOfWeek === dayOfWeek);
-            if (pattern) {
-                effectivePeriods = [{ startMinutes: pattern.startMinutes, endMinutes: pattern.endMinutes }];
-                // Note: The globalSlotDuration completely overrides the old localized pattern.slotDuration
-                bufferMinutes = pattern.bufferMinutes;
+            const dayPatterns = patterns.filter(p => p.dayOfWeek === dayOfWeek);
+            if (dayPatterns.length > 0) {
+                effectivePeriods = dayPatterns.map(p => ({
+                    startMinutes: p.startMinutes,
+                    endMinutes: p.endMinutes,
+                    modality: p.modality || 'in_person'
+                })) as any;
+                bufferMinutes = dayPatterns[0].bufferMinutes;
             }
         }
 
@@ -131,6 +136,8 @@ export const generateAgendaSlots = async (
                     patientName: occupiedAppt ? `${(occupiedAppt.patientId as any)?.personalInfo?.firstName || ''} ${(occupiedAppt.patientId as any)?.personalInfo?.lastName || ''}`.trim() : undefined,
                     patientType: occupiedAppt ? (occupiedAppt.patientId as any)?.patientType : undefined,
                     isRecurring: occupiedAppt ? occupiedAppt.isRecurring : undefined,
+                    appointmentType: occupiedAppt ? occupiedAppt.type : undefined,
+                    modality: occupiedAppt ? (occupiedAppt.modality as 'in_person'|'video_call') : ((period as any).modality || 'in_person'),
                 });
 
                 // Next slot (duration + buffer)

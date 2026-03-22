@@ -8,6 +8,7 @@ export interface AvailabilityPattern {
     endMinutes: number;
     slotDuration: number;
     bufferMinutes: number;
+    modality?: 'in_person' | 'video_call';
 }
 
 export interface AvailabilityException {

@@ -11,7 +11,7 @@ interface BottomSheetTurnoProps {
     onOpenChange: (open: boolean) => void;
     initialDate?: Date;
     /** Available slots for all days (from agenda backend) */
-    availableSlots?: { startAt: string; endAt: string; status: string }[];
+    availableSlots?: { startAt: string; endAt: string; status: string; modality?: 'in_person' | 'video_call' }[];
     onConfirm: (data: any) => Promise<void>;
 }
 
@@ -19,8 +19,9 @@ export default function BottomSheetTurno({ open, onOpenChange, initialDate, avai
     const [patientSearch, setPatientSearch] = useState('');
     const [selectedPatient, setSelectedPatient] = useState<PatientListItem | null>(null);
     const [selectedType, setSelectedType] = useState('Primera sesión');
+    const [selectedModality, setSelectedModality] = useState<'in_person' | 'video_call'>('in_person');
     const [isSaving, setIsSaving] = useState(false);
-    const [selectedSlot, setSelectedSlot] = useState<{ startAt: string; endAt: string } | null>(null);
+    const [selectedSlot, setSelectedSlot] = useState<{ startAt: string; endAt: string; modality?: 'in_person' | 'video_call' } | null>(null);
     const [showCreatePatient, setShowCreatePatient] = useState(false);
 
     // Recurring State
@@ -33,13 +34,13 @@ export default function BottomSheetTurno({ open, onOpenChange, initialDate, avai
 
     // Group available slots by date for time selection
     const slotsByDate = useMemo(() => {
-        const map = new Map<string, { startAt: string; endAt: string }[]>();
+        const map = new Map<string, { startAt: string; endAt: string; modality?: 'in_person' | 'video_call' }[]>();
         availableSlots
             .filter(s => s.status === 'available')
             .forEach(s => {
                 const dateKey = s.startAt.split('T')[0];
                 if (!map.has(dateKey)) map.set(dateKey, []);
-                map.get(dateKey)!.push({ startAt: s.startAt, endAt: s.endAt });
+                map.get(dateKey)!.push({ startAt: s.startAt, endAt: s.endAt, modality: s.modality });
             });
         return map;
     }, [availableSlots]);
@@ -58,7 +59,10 @@ export default function BottomSheetTurno({ open, onOpenChange, initialDate, avai
         if (initialDate && !selectedSlot) {
             const iso = initialDate.toISOString();
             const matching = availableSlots.find(s => s.startAt === iso && s.status === 'available');
-            if (matching) setSelectedSlot({ startAt: matching.startAt, endAt: matching.endAt });
+            if (matching) {
+                setSelectedSlot({ startAt: matching.startAt, endAt: matching.endAt, modality: (matching as any).modality });
+                setSelectedModality((matching as any).modality || 'in_person');
+            }
         }
     }, [initialDate, availableSlots]);
 
@@ -74,6 +78,7 @@ export default function BottomSheetTurno({ open, onOpenChange, initialDate, avai
             const appointmentData: any = {
                 patientId: selectedPatient._id,
                 type: selectedType,
+                modality: selectedModality,
                 startAt: selectedSlot.startAt,
                 endAt: selectedSlot.endAt,
             };
@@ -151,7 +156,10 @@ export default function BottomSheetTurno({ open, onOpenChange, initialDate, avai
                                         return (
                                             <button
                                                 key={idx}
-                                                onClick={() => setSelectedSlot(slot)}
+                                                onClick={() => {
+                                                    setSelectedSlot(slot);
+                                                    setSelectedModality(slot.modality || 'in_person');
+                                                }}
                                                 className={`px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${isSelected
                                                     ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
                                                     : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-indigo-300 dark:hover:border-indigo-700'
@@ -241,20 +249,35 @@ export default function BottomSheetTurno({ open, onOpenChange, initialDate, avai
                             )}
                         </div>
 
-                        {/* Session Type */}
-                        <div className="mb-2 shrink-0">
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                Tipo de sesión
-                            </label>
-                            <select
-                                value={selectedType}
-                                onChange={(e) => setSelectedType(e.target.value)}
-                                className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                            >
-                                <option>Primera sesión</option>
-                                <option>Seguimiento</option>
-                                <option>Aptitud Psicológica</option>
-                            </select>
+                        {/* Session Type & Modality */}
+                        <div className="grid grid-cols-2 gap-3 mb-2 shrink-0">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Tipo de sesión
+                                </label>
+                                <select
+                                    value={selectedType}
+                                    onChange={(e) => setSelectedType(e.target.value)}
+                                    className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                >
+                                    <option>Primera sesión</option>
+                                    <option>Seguimiento</option>
+                                    <option>Aptitud Psicológica</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Modalidad
+                                </label>
+                                <select
+                                    value={selectedModality}
+                                    onChange={(e) => setSelectedModality(e.target.value as any)}
+                                    className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                >
+                                    <option value="in_person">📍 Presencial</option>
+                                    <option value="video_call">💻 Videollamada</option>
+                                </select>
+                            </div>
                         </div>
 
                         {/* Repetir Turno */}

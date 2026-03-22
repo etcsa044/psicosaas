@@ -10,6 +10,7 @@ export interface IAvailabilityPattern extends Document {
     endMinutes: number; // Minutes from midnight
     slotDuration: number; // Default 50 mins
     bufferMinutes: number; // Default 10 mins (break between sessions)
+    modality: 'in_person' | 'video_call';
     isDeleted: boolean; // Soft delete
 }
 
@@ -21,6 +22,7 @@ const AvailabilityPatternSchema = new Schema<IAvailabilityPattern>(
         endMinutes: { type: Number, required: true, min: 0, max: 1440 },
         slotDuration: { type: Number, required: true, min: 10, max: 480, default: 50 },
         bufferMinutes: { type: Number, required: true, min: 0, max: 120, default: 5 },
+        modality: { type: String, enum: ['in_person', 'video_call'], default: 'in_person' },
         isDeleted: { type: Boolean, default: false },
     },
     { timestamps: true }
