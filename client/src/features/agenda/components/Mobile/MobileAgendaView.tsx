@@ -15,32 +15,56 @@ interface MobileAgendaViewProps {
     onDelete?: (id: string, mode?: 'single' | 'forward' | 'all') => void;
 }
 
+// UTC helper: compare two dates by their UTC year/month/day
+function isSameUTCDay(a: Date, b: Date): boolean {
+    return a.getUTCFullYear() === b.getUTCFullYear()
+        && a.getUTCMonth() === b.getUTCMonth()
+        && a.getUTCDate() === b.getUTCDate();
+}
+
 export default function MobileAgendaView({ appointments, onNewTurno, onStatusChange, onCancel, onDelete }: MobileAgendaViewProps) {
-    const [selectedDate, setSelectedDate] = useState(new Date());
+    // Store selectedDate as UTC midnight for consistency with backend data
+    const todayUTC = useMemo(() => {
+        const now = new Date();
+        return new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+    }, []);
+    const [selectedDate, setSelectedDate] = useState(todayUTC);
     const [actionSheetApp, setActionSheetApp] = useState<any>(null);
 
-    // Generate current week dates for strip calendar
+    // Generate current week dates for strip calendar (Mon-Fri only, no weekends)
     const stripDates = useMemo(() => {
-        const start = startOfWeek(selectedDate, { weekStartsOn: 1 }); // Monday
-        return Array.from({ length: 7 }).map((_, i) => addDays(start, i));
+        // Find Monday of the week containing selectedDate
+        const dayOfWeek = selectedDate.getUTCDay();
+        const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+        const monday = new Date(Date.UTC(selectedDate.getUTCFullYear(), selectedDate.getUTCMonth(), selectedDate.getUTCDate() + diffToMonday));
+        // Mon(0) through Fri(4) — 5 weekdays
+        return Array.from({ length: 5 }).map((_, i) => {
+            const d = new Date(monday);
+            d.setUTCDate(monday.getUTCDate() + i);
+            return d;
+        });
     }, [selectedDate]);
 
-    // Filter appointments for selected date
+    // Filter appointments for selected date (UTC comparison)
     const dayAppointments = useMemo(() => {
-        return appointments.filter(a => isSameDay(new Date(a.startTime), selectedDate))
+        return appointments.filter(a => isSameUTCDay(new Date(a.startTime), selectedDate))
             .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
     }, [appointments, selectedDate]);
 
-    // Generate timeline slots (e.g. 08:00 to 18:00 every hour)
+    // Generate timeline slots using UTC hours (08:00 to 18:00)
     const timelineSlots = useMemo(() => {
         const slots = [];
         for (let i = 8; i <= 18; i++) {
-            const slotTime = new Date(selectedDate);
-            slotTime.setHours(i, 0, 0, 0);
+            const slotTime = new Date(Date.UTC(
+                selectedDate.getUTCFullYear(),
+                selectedDate.getUTCMonth(),
+                selectedDate.getUTCDate(),
+                i, 0, 0, 0
+            ));
 
-            // Find appointments that fall within this hour
+            // Find appointments that start within this UTC hour
             const slotApps = dayAppointments.filter(a => {
-                const startHour = new Date(a.startTime).getHours();
+                const startHour = new Date(a.startTime).getUTCHours();
                 return startHour === i;
             });
 
@@ -67,11 +91,14 @@ export default function MobileAgendaView({ appointments, onNewTurno, onStatusCha
                     </span>
                 </div>
 
-                {/* Strip Calendar */}
+                {/* Strip Calendar (Mon–Fri only) */}
                 <div className="flex justify-between items-center gap-2 overflow-x-auto snap-x hide-scrollbar pb-1">
                     {stripDates.map((date, idx) => {
-                        const isSelected = isSameDay(date, selectedDate);
-                        const isToday = isSameDay(date, new Date());
+                        const isSelected = isSameUTCDay(date, selectedDate);
+                        const isToday = isSameUTCDay(date, todayUTC);
+                        // Format using UTC to avoid timezone shift
+                        const dayName = new Intl.DateTimeFormat('es-AR', { weekday: 'short', timeZone: 'UTC' }).format(date);
+                        const dayNum = date.getUTCDate();
                         return (
                             <button
                                 key={idx}
@@ -82,10 +109,10 @@ export default function MobileAgendaView({ appointments, onNewTurno, onStatusCha
                                     }`}
                             >
                                 <span className={`text-[10px] uppercase font-bold tracking-wider mb-1 ${isSelected ? 'text-indigo-100' : 'text-gray-400'}`}>
-                                    {format(date, 'eee', { locale: es })}
+                                    {dayName}
                                 </span>
                                 <span className={`text-lg font-bold ${isToday && !isSelected ? 'text-indigo-600 dark:text-indigo-400' : ''}`}>
-                                    {format(date, 'd')}
+                                    {dayNum}
                                 </span>
                                 {isToday && <div className={`w-1 h-1 rounded-full mt-1 ${isSelected ? 'bg-white' : 'bg-indigo-600'}`} />}
                             </button>
@@ -113,7 +140,7 @@ export default function MobileAgendaView({ appointments, onNewTurno, onStatusCha
                             {slot.appointments.length > 0 ? (
                                 <div className="space-y-4">
                                     {slot.appointments.map(app => (
-                                        <div key={app._id} className="-mt-1">
+                                        <div key={app._id || app.appointmentId} className="-mt-1">
                                             <TurnoMobileCard
                                                 appointment={app}
                                                 onStatusChange={onStatusChange}
@@ -151,3 +178,4 @@ export default function MobileAgendaView({ appointments, onNewTurno, onStatusCha
         </div>
     );
 }
+
