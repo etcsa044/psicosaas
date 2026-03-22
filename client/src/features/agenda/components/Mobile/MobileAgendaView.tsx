@@ -59,10 +59,10 @@ export default function MobileAgendaView({ days, onNewTurno, onStatusChange, onC
     const [actionSheetApp, setActionSheetApp] = useState<any>(null);
     const [rescheduleTargetApp, setRescheduleTargetApp] = useState<any>(null);
 
-    // Generate current week dates for strip calendar (Mon-Fri only)
     const stripDates = useMemo(() => {
         const dayOfWeek = selectedDate.getUTCDay();
-        const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+        // If Sunday, show the upcoming week instead of the past week
+        const diffToMonday = dayOfWeek === 0 ? 1 : 1 - dayOfWeek;
         const monday = new Date(Date.UTC(selectedDate.getUTCFullYear(), selectedDate.getUTCMonth(), selectedDate.getUTCDate() + diffToMonday));
         return Array.from({ length: 5 }).map((_, i) => {
             const d = new Date(monday);

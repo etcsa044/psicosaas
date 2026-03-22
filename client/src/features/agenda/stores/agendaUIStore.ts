@@ -21,7 +21,8 @@ interface AgendaUIState {
 const getStartOfWeekUTC = (date: Date): string => {
     const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
     const day = d.getUTCDay();
-    const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1);
+    // If it's Sunday (0), switch to the upcoming Monday (+1) instead of the previous Monday (-6)
+    const diff = d.getUTCDate() - day + (day === 0 ? 1 : 1);
     d.setUTCDate(diff);
     return d.toISOString();
 };
