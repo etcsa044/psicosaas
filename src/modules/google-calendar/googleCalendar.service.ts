@@ -116,11 +116,11 @@ export const googleCalendarService = {
             summary: `Turno: ${appointment.patientName || 'Paciente'}`,
             description: `Tipo: ${appointment.type || 'Sesión'}\nModalidad: ${appointment.modality === 'video_call' ? 'Videollamada' : 'Presencial'}`,
             start: {
-                dateTime: new Date(appointment.startAt).toISOString().replace('Z', ''),
+                dateTime: new Date(appointment.startAt).toISOString().split('.')[0],
                 timeZone: 'America/Argentina/Buenos_Aires',
             },
             end: {
-                dateTime: new Date(appointment.endAt).toISOString().replace('Z', ''),
+                dateTime: new Date(appointment.endAt).toISOString().split('.')[0],
                 timeZone: 'America/Argentina/Buenos_Aires',
             },
             reminders: {
@@ -146,6 +146,8 @@ export const googleCalendarService = {
                 },
             };
         }
+
+        logger.debug('Creating Google Calendar event', { calendarId, appointmentId: appointment._id, event });
 
         try {
             const response = await calendar.events.insert({
@@ -190,10 +192,10 @@ export const googleCalendarService = {
 
         const patch: calendar_v3.Schema$Event = {};
         if (updatedData.startAt) {
-            patch.start = { dateTime: updatedData.startAt.toISOString().replace('Z', ''), timeZone: 'America/Argentina/Buenos_Aires' };
+            patch.start = { dateTime: updatedData.startAt.toISOString().split('.')[0], timeZone: 'America/Argentina/Buenos_Aires' };
         }
         if (updatedData.endAt) {
-            patch.end = { dateTime: updatedData.endAt.toISOString().replace('Z', ''), timeZone: 'America/Argentina/Buenos_Aires' };
+            patch.end = { dateTime: updatedData.endAt.toISOString().split('.')[0], timeZone: 'America/Argentina/Buenos_Aires' };
         }
         if (updatedData.patientName) {
             patch.summary = `Turno: ${updatedData.patientName}`;
