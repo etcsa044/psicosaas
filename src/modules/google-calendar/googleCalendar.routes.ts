@@ -13,8 +13,8 @@ router.get('/auth', googleCalendarController.auth);
 router.get('/callback', googleCalendarController.callback);
 
 // Protected routes — require auth
-router.get('/status', tenantMiddleware, authMiddleware, googleCalendarController.status);
-router.post('/disconnect', tenantMiddleware, authMiddleware, googleCalendarController.disconnect);
-router.patch('/settings', tenantMiddleware, authMiddleware, googleCalendarController.updateSettings);
+router.get('/status', authMiddleware, tenantMiddleware, googleCalendarController.status);
+router.post('/disconnect', authMiddleware, tenantMiddleware, googleCalendarController.disconnect);
+router.patch('/settings', authMiddleware, tenantMiddleware, googleCalendarController.updateSettings);
 
 export default router;
