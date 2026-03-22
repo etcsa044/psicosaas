@@ -298,8 +298,44 @@ export function AgendaDashboard() {
                                 <div className="block lg:hidden h-full">
                                 <MobileAgendaView
                                         days={agenda?.days || []}
-                                        onNewTurno={(slot) => {
-                                            handleEmptySlotClick(slot as Slot);
+                                        onNewTurno={(slot: any) => {
+                                            if (slot.isReschedule) {
+                                                const executeMobileReschedule = async (override = false) => {
+                                                    try {
+                                                        const reqPayload = {
+                                                            appointmentId: slot.originalApp._id,
+                                                            newStartUTC: slot.startAt,
+                                                            overrideFrequencyAlert: override
+                                                        };
+                                                        if (slot.originalApp.isRecurring) {
+                                                            // For MVP, reprogramming single instance from mobile
+                                                            (reqPayload as any).recurringMode = 'single';
+                                                        }
+                                                        
+                                                        const result = await rescheduleMutation.mutateAsync(reqPayload) as any;
+                                                        if (result?._cancellationWarning?.warning) {
+                                                            toast(`Nota clínica: El paciente tuvo ${result._cancellationWarning.cancellationsLastPeriod} ausencias recientes.`, { icon: '⚠️', duration: 6000 });
+                                                        }
+                                                        toast.success('Turno reprogramado exitosamente');
+                                                        setConflictError(null);
+                                                    } catch (error: any) {
+                                                        if (axios.isAxiosError(error) && error.response) {
+                                                            const status = error.response.status;
+                                                            const message = error.response.data.message || 'Error de validación clínica';
+                                                            if (status === 409) {
+                                                                setConflictError({ type: 'alert', message, pendingAction: () => executeMobileReschedule(true) });
+                                                            } else if (status === 403) {
+                                                                setConflictError({ type: 'block', message });
+                                                            } else {
+                                                                toast.error(`Error: ${message}`);
+                                                            }
+                                                        }
+                                                    }
+                                                };
+                                                executeMobileReschedule();
+                                            } else {
+                                                handleEmptySlotClick(slot as Slot);
+                                            }
                                         }}
                                         onStatusChange={async (id, s) => {
                                             // TODO trigger modal or reschedule api

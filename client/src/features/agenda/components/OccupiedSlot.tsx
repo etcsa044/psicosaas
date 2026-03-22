@@ -49,8 +49,13 @@ export function OccupiedSlot({ slot, onClick }: OccupiedSlotProps) {
             </div>
 
             <div className="flex justify-between items-end pl-1 mt-1">
-                <div className="text-[10px] text-gray-500 dark:text-gray-400 font-normal">
-                    {startHour} - {endHour}
+                <div className="flex flex-col">
+                    <div className="text-[10px] text-gray-500 dark:text-gray-400 font-normal">
+                        {startHour} - {endHour}
+                    </div>
+                    <div className="text-[10px] text-indigo-700 dark:text-indigo-300 font-medium capitalize mt-0.5">
+                        {slot.appointmentType || 'Sesión'}
+                    </div>
                 </div>
                 {slot.patientType && (
                     <span className={`text-[9px] px-1.5 py-0.5 rounded-full uppercase tracking-wider font-bold ${typeColor}`}>

@@ -128,6 +128,12 @@ export function AppointmentPopover({ slot, onClose }: AppointmentPopoverProps) {
                             )}
                         </div>
                         <div>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">Tipo de sesión</p>
+                            <p className="text-base font-medium text-gray-900 dark:text-white capitalize">
+                                {slot.appointmentType || 'Sesión'}
+                            </p>
+                        </div>
+                        <div>
                             <p className="text-sm text-gray-500 dark:text-gray-400">Horario</p>
                             <p className="text-base font-medium text-gray-900 dark:text-white">{startHour} - {endHour}</p>
                         </div>

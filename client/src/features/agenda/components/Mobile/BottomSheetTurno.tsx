@@ -1,40 +1,84 @@
 'use client';
 
 import { Drawer } from 'vaul';
-import { useState } from 'react';
-// no button wrapper needed
-import { X, Search } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { X, Search, Check, ChevronLeft, ChevronRight } from 'lucide-react';
+import { usePatients, PatientListItem } from '../../hooks/usePatients';
 
 interface BottomSheetTurnoProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     initialDate?: Date;
+    /** Available slots for all days (from agenda backend) */
+    availableSlots?: { startAt: string; endAt: string; status: string }[];
     onConfirm: (data: any) => Promise<void>;
 }
 
-export default function BottomSheetTurno({ open, onOpenChange, initialDate, onConfirm }: BottomSheetTurnoProps) {
+export default function BottomSheetTurno({ open, onOpenChange, initialDate, availableSlots = [], onConfirm }: BottomSheetTurnoProps) {
     const [patientSearch, setPatientSearch] = useState('');
+    const [selectedPatient, setSelectedPatient] = useState<PatientListItem | null>(null);
     const [selectedType, setSelectedType] = useState('Primera sesión');
     const [isSaving, setIsSaving] = useState(false);
+    const [selectedSlot, setSelectedSlot] = useState<{ startAt: string; endAt: string } | null>(null);
 
     // Recurring State
     const [frequency, setFrequency] = useState<'none' | 'weekly' | 'biweekly' | 'monthly'>('none');
-    const [durationMonths, setDurationMonths] = useState<number>(3); // 3m, 6m, 12m
+    const [durationMonths, setDurationMonths] = useState<number>(3);
+
+    // Real patient search
+    const { data: patientsData, isLoading: patientsLoading } = usePatients(patientSearch);
+    const patients = useMemo(() => patientsData?.data || [], [patientsData]);
+
+    // Group available slots by date for time selection
+    const slotsByDate = useMemo(() => {
+        const map = new Map<string, { startAt: string; endAt: string }[]>();
+        availableSlots
+            .filter(s => s.status === 'available')
+            .forEach(s => {
+                const dateKey = s.startAt.split('T')[0];
+                if (!map.has(dateKey)) map.set(dateKey, []);
+                map.get(dateKey)!.push({ startAt: s.startAt, endAt: s.endAt });
+            });
+        return map;
+    }, [availableSlots]);
+
+    // Determine current date for slot listing
+    const currentDateKey = useMemo(() => {
+        if (selectedSlot) return selectedSlot.startAt.split('T')[0];
+        if (initialDate) return initialDate.toISOString().split('T')[0];
+        return new Date().toISOString().split('T')[0];
+    }, [initialDate, selectedSlot]);
+
+    const currentDaySlots = slotsByDate.get(currentDateKey) || [];
+
+    // Set initial slot from initialDate if available
+    useMemo(() => {
+        if (initialDate && !selectedSlot) {
+            const iso = initialDate.toISOString();
+            const matching = availableSlots.find(s => s.startAt === iso && s.status === 'available');
+            if (matching) setSelectedSlot({ startAt: matching.startAt, endAt: matching.endAt });
+        }
+    }, [initialDate, availableSlots]);
+
+    const handleSelectPatient = (p: PatientListItem) => {
+        setSelectedPatient(p);
+        setPatientSearch(`${p.personalInfo.firstName} ${p.personalInfo.lastName}`);
+    };
 
     const handleConfirm = async () => {
-        if (!patientSearch) return;
+        if (!selectedPatient || !selectedSlot) return;
         setIsSaving(true);
         try {
             const appointmentData: any = {
-                patientId: 'temp_id', // En la vida real esto viene del selector select
+                patientId: selectedPatient._id,
                 type: selectedType,
-                date: initialDate || new Date()
+                startAt: selectedSlot.startAt,
+                endAt: selectedSlot.endAt,
             };
 
             if (frequency !== 'none') {
-                const seriesEndDate = new Date(appointmentData.date);
+                const seriesEndDate = new Date(selectedSlot.startAt);
                 seriesEndDate.setMonth(seriesEndDate.getMonth() + durationMonths);
-
                 appointmentData.recurringPattern = {
                     frequency,
                     interval: 1,
@@ -43,12 +87,27 @@ export default function BottomSheetTurno({ open, onOpenChange, initialDate, onCo
             }
 
             await onConfirm(appointmentData);
+            // Reset state
+            setSelectedPatient(null);
+            setPatientSearch('');
+            setSelectedSlot(null);
+            setFrequency('none');
             onOpenChange(false);
         } catch (error) {
             console.error(error);
         } finally {
             setIsSaving(false);
         }
+    };
+
+    const formatSlotTime = (isoStr: string) => {
+        const d = new Date(isoStr);
+        return d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
+    };
+
+    const formatDateLabel = (isoStr: string) => {
+        const d = new Date(isoStr);
+        return new Intl.DateTimeFormat('es-AR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' }).format(d);
     };
 
     return (
@@ -69,28 +128,110 @@ export default function BottomSheetTurno({ open, onOpenChange, initialDate, onCo
                             </button>
                         </div>
 
-                        <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl mb-4">
+                        {/* Selected Time */}
+                        <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl mb-2">
                             <p className="text-sm font-medium text-indigo-900 dark:text-indigo-300">
-                                📅 {initialDate ? initialDate.toLocaleString('es-AR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) : 'Seleccione horario...'}
+                                {selectedSlot
+                                    ? `📅 ${formatDateLabel(selectedSlot.startAt)} — ${formatSlotTime(selectedSlot.startAt)} a ${formatSlotTime(selectedSlot.endAt)}`
+                                    : '📅 Seleccioná un horario disponible abajo'}
                             </p>
                         </div>
 
-                        {/* Patient Search */}
-                        <div className="relative mb-4 shrink-0">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <Search size={18} className="text-gray-400" />
+                        {/* Time Slot Selector */}
+                        {currentDaySlots.length > 0 && (
+                            <div className="mb-2 shrink-0">
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Horarios disponibles
+                                </label>
+                                <div className="flex flex-wrap gap-2">
+                                    {currentDaySlots.map((slot, idx) => {
+                                        const isSelected = selectedSlot?.startAt === slot.startAt;
+                                        return (
+                                            <button
+                                                key={idx}
+                                                onClick={() => setSelectedSlot(slot)}
+                                                className={`px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${isSelected
+                                                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
+                                                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-indigo-300 dark:hover:border-indigo-700'
+                                                }`}
+                                            >
+                                                {formatSlotTime(slot.startAt)}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
                             </div>
-                            <input
-                                type="text"
-                                className="block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-700 rounded-xl leading-5 bg-white dark:bg-gray-800 placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition duration-150 ease-in-out text-gray-900 dark:text-white"
-                                placeholder="Buscar paciente por nombre..."
-                                value={patientSearch}
-                                onChange={(e) => setPatientSearch(e.target.value)}
-                            />
+                        )}
+
+                        {/* Patient Search */}
+                        <div className="relative mb-2 shrink-0">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Paciente
+                            </label>
+                            <div className="relative">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <Search size={18} className="text-gray-400" />
+                                </div>
+                                <input
+                                    type="text"
+                                    className="block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-700 rounded-xl leading-5 bg-white dark:bg-gray-800 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition text-gray-900 dark:text-white"
+                                    placeholder="Buscar paciente por nombre..."
+                                    value={patientSearch}
+                                    onChange={(e) => {
+                                        setPatientSearch(e.target.value);
+                                        if (selectedPatient) setSelectedPatient(null);
+                                    }}
+                                />
+                            </div>
+
+                            {/* Patient Results Dropdown */}
+                            {patientSearch.length > 0 && !selectedPatient && (
+                                <div className="mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg max-h-48 overflow-y-auto z-10">
+                                    {patientsLoading ? (
+                                        <div className="p-4 text-center text-sm text-gray-400">Buscando...</div>
+                                    ) : patients.length === 0 ? (
+                                        <div className="p-4 text-center text-sm text-gray-400">No se encontraron pacientes</div>
+                                    ) : (
+                                        patients.map((p) => (
+                                            <button
+                                                key={p._id}
+                                                onClick={() => handleSelectPatient(p)}
+                                                className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors border-b border-gray-50 dark:border-gray-800 last:border-0"
+                                            >
+                                                <div>
+                                                    <p className="text-sm font-medium text-gray-900 dark:text-white">
+                                                        {p.personalInfo.firstName} {p.personalInfo.lastName}
+                                                    </p>
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400">{p.patientType}</p>
+                                                </div>
+                                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 uppercase font-bold">
+                                                    {p.patientType}
+                                                </span>
+                                            </button>
+                                        ))
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Selected Patient Chip */}
+                            {selectedPatient && (
+                                <div className="mt-2 flex items-center gap-2 p-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg">
+                                    <Check size={16} className="text-indigo-600 dark:text-indigo-400" />
+                                    <span className="text-sm font-medium text-indigo-700 dark:text-indigo-300">
+                                        {selectedPatient.personalInfo.firstName} {selectedPatient.personalInfo.lastName}
+                                    </span>
+                                    <button
+                                        onClick={() => { setSelectedPatient(null); setPatientSearch(''); }}
+                                        className="ml-auto p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                                    >
+                                        <X size={14} />
+                                    </button>
+                                </div>
+                            )}
                         </div>
 
                         {/* Session Type */}
-                        <div className="mb-4 shrink-0">
+                        <div className="mb-2 shrink-0">
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                 Tipo de sesión
                             </label>
@@ -152,14 +293,13 @@ export default function BottomSheetTurno({ open, onOpenChange, initialDate, onCo
                             )}
                         </div>
 
-                        {/* Spacer to push button down if needed, though scroll handles it */}
                         <div className="flex-1 min-h-[1rem]" />
 
                         {/* Bottom Action */}
                         <div className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-800">
                             <button
                                 onClick={handleConfirm}
-                                disabled={isSaving || !patientSearch}
+                                disabled={isSaving || !selectedPatient || !selectedSlot}
                                 className="w-full flex justify-center py-3.5 px-4 border border-transparent rounded-xl shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 transition-colors"
                             >
                                 {isSaving ? 'Guardando...' : 'Confirmar Turno'}

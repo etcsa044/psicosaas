@@ -20,6 +20,7 @@ interface TurnoActionSheetProps {
     onReschedule?: (id: string, recurringMode?: 'single' | 'forward' | 'all') => void;
     onCancel?: (id: string, source: 'PATIENT' | 'PROFESSIONAL' | 'SYSTEM', reason: string, recurringMode?: 'single' | 'forward' | 'all') => void;
     onDelete?: (id: string, recurringMode?: 'single' | 'forward' | 'all') => void;
+    onRequestReschedule?: () => void;
 }
 
 export default function TurnoActionSheet({
@@ -28,6 +29,7 @@ export default function TurnoActionSheet({
     appointment,
     onMarkCompleted,
     onReschedule,
+    onRequestReschedule,
     onCancel,
     onDelete,
 }: TurnoActionSheetProps) {
@@ -82,9 +84,9 @@ export default function TurnoActionSheet({
                                         {appointment.patientName || 'Paciente'}
                                     </h3>
                                     <p className="text-sm text-gray-500 dark:text-gray-400">
-                                        {new Date(appointment.startTime).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
+                                        {new Date(appointment.startTime).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })}
                                         {' — '}
-                                        {new Date(appointment.endTime).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
+                                        {new Date(appointment.endTime).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })}
                                     </p>
                                 </div>
                                 <button onClick={handleClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full">
@@ -109,7 +111,14 @@ export default function TurnoActionSheet({
                                     </button>
 
                                     <button
-                                        onClick={() => handleActionClick('edit')}
+                                        onClick={() => {
+                                            if (onRequestReschedule) {
+                                                onRequestReschedule();
+                                                handleClose();
+                                            } else {
+                                                handleActionClick('edit');
+                                            }
+                                        }}
                                         className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-left hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
                                     >
                                         <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center">

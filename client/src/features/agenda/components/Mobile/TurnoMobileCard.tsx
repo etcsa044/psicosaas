@@ -1,8 +1,6 @@
 'use client';
 
-import { CalendarClock, CheckCircle, Clock } from 'lucide-react';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { CheckCircle, CalendarClock, Clock } from 'lucide-react';
 
 interface TurnoMobileCardProps {
     appointment: any;
@@ -11,7 +9,6 @@ interface TurnoMobileCardProps {
 }
 
 export default function TurnoMobileCard({ appointment, onStatusChange, onClick }: TurnoMobileCardProps) {
-    // Determine visual status styles
     const getStatusStyles = (status: string) => {
         switch (status) {
             case 'completed':
@@ -27,6 +24,12 @@ export default function TurnoMobileCard({ appointment, onStatusChange, onClick }
 
     const s = getStatusStyles(appointment.status);
     const startObj = new Date(appointment.startTime);
+    const endObj = new Date(appointment.endTime);
+
+    // Always display in UTC to match the grid
+    const startLabel = startObj.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
+    const endLabel = endObj.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
+    const durationMin = Math.round((endObj.getTime() - startObj.getTime()) / 60000);
 
     return (
         <div className="relative w-full mb-3 rounded-2xl overflow-hidden bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm transition-shadow active:scale-[0.98]">
@@ -38,16 +41,15 @@ export default function TurnoMobileCard({ appointment, onStatusChange, onClick }
                 <div className="flex justify-between items-start">
                     <div className="flex items-center gap-2">
                         <span className="text-lg font-bold text-gray-900 dark:text-white">
-                            {format(startObj, 'HH:mm')}
+                            {startLabel}
                         </span>
                         <span className={`px-2 py-0.5 rounded-full text-xs font-semibold flex items-center gap-1 ${s.light}`}>
                             {s.icon} {s.label}
                         </span>
                     </div>
-                    {/* Duration badge or similar */}
                     <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 gap-1 bg-gray-50 dark:bg-gray-800 px-2 py-1 rounded-md">
                         <Clock size={12} />
-                        {(new Date(appointment.endTime).getTime() - startObj.getTime()) / 60000} min
+                        {durationMin} min
                     </div>
                 </div>
 
@@ -56,11 +58,11 @@ export default function TurnoMobileCard({ appointment, onStatusChange, onClick }
                         {appointment.patientName || 'Paciente Activo'}
                     </h3>
                     <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-1">
-                        {appointment.appointmentType || 'Primera sesión'}
+                        {appointment.appointmentType || 'Sesión'}
                     </p>
                 </div>
 
-                {/* Quick actions row (always visible instead of swipe for reliability) */}
+                {/* Quick actions row */}
                 <div className="mt-3 pt-3 border-t border-gray-50 dark:border-gray-800 flex justify-between">
                     <button
                         onClick={(e) => { e.stopPropagation(); onStatusChange?.(appointment._id, 'completed'); }}
