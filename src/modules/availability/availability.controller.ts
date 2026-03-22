@@ -64,6 +64,9 @@ export const availabilityController = {
             
             res.status(200).json({ status: 'success', data: exception });
         } catch (error) {
+            if (error instanceof Error && error.message.includes('CONFLICT:')) {
+                return res.status(409).json({ status: 'error', message: error.message.replace('CONFLICT: ', '') });
+            }
             next(error);
         }
     },

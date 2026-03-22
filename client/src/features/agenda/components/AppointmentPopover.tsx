@@ -28,8 +28,8 @@ export function AppointmentPopover({ slot, onClose }: AppointmentPopoverProps) {
 
     if (!slot.appointmentId) return null;
 
-    const startHour = new Date(slot.startAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
-    const endHour = new Date(slot.endAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
+    const startHour = new Date(slot.startAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC', hour12: false });
+    const endHour = new Date(slot.endAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC', hour12: false });
 
     // When user picks a cancel reason
     const handleCancelReasonSelected = (reason: typeof CANCEL_REASONS[0]) => {

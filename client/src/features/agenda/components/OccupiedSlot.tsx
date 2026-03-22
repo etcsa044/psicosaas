@@ -21,8 +21,8 @@ export function OccupiedSlot({ slot, onClick }: OccupiedSlotProps) {
         zIndex: 50,
     } : undefined;
 
-    const startHour = new Date(slot.startAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
-    const endHour = new Date(slot.endAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
+    const startHour = new Date(slot.startAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC', hour12: false });
+    const endHour = new Date(slot.endAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC', hour12: false });
 
     let typeColor = 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200'; // Semanal / Default
     if (slot.patientType === 'quincenal') typeColor = 'bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-200';

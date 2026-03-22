@@ -84,9 +84,9 @@ export default function TurnoActionSheet({
                                         {appointment.patientName || 'Paciente'}
                                     </h3>
                                     <p className="text-sm text-gray-500 dark:text-gray-400">
-                                        {new Date(appointment.startTime).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })}
+                                        {new Date(appointment.startTime).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC', hour12: false })}
                                         {' — '}
-                                        {new Date(appointment.endTime).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })}
+                                        {new Date(appointment.endTime).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC', hour12: false })}
                                     </p>
                                 </div>
                                 <button onClick={handleClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full">

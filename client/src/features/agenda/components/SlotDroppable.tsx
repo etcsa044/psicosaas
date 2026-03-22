@@ -21,8 +21,8 @@ export function SlotDroppable({ slot, onAppointmentClick, onEmptySlotClick }: Sl
         return <OccupiedSlot slot={slot} onClick={() => onAppointmentClick?.(slot)} />;
     }
 
-    const startHour = new Date(slot.startAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
-    const endHour = new Date(slot.endAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
+    const startHour = new Date(slot.startAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC', hour12: false });
+    const endHour = new Date(slot.endAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC', hour12: false });
 
     let bgClass = 'bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400';
 

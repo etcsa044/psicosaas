@@ -24,8 +24,9 @@ export default function ExceptionEditor() {
             });
             setSelectedDate('');
             toast.success('Día bloqueado correctamente');
-        } catch (error) {
-            toast.error('Error al bloquear el día');
+        } catch (error: any) {
+            const msg = error.response?.data?.message || 'Error al bloquear el día';
+            toast.error(msg);
             console.error(error);
         }
     };

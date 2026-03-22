@@ -27,8 +27,8 @@ export default function TurnoMobileCard({ appointment, onStatusChange, onClick }
     const endObj = new Date(appointment.endTime);
 
     // Always display in UTC to match the grid
-    const startLabel = startObj.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
-    const endLabel = endObj.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
+    const startLabel = startObj.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC', hour12: false });
+    const endLabel = endObj.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC', hour12: false });
     const durationMin = Math.round((endObj.getTime() - startObj.getTime()) / 60000);
 
     return (

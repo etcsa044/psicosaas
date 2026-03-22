@@ -1,6 +1,7 @@
 import { Types } from 'mongoose';
 import AvailabilityPattern, { IAvailabilityPattern } from './models/availabilityPattern.model';
 import AvailabilityException, { IAvailabilityException } from './models/availabilityException.model';
+import Appointment from '../appointment/models/appointment.model';
 
 export const availabilityService = {
     /**
@@ -92,6 +93,25 @@ export const availabilityService = {
             date: utcDate,
             isDeleted: false,
         });
+
+        // 🚨 Validate: Do not allow blocking a day if there are active appointments
+        if (blocked) {
+            const startOfDay = new Date(utcDate);
+            const endOfDay = new Date(utcDate);
+            endOfDay.setUTCDate(endOfDay.getUTCDate() + 1);
+
+            const conflictingAppointments = await Appointment.find({
+                tenantId,
+                professionalId,
+                isDeleted: false,
+                status: { $in: ['scheduled', 'confirmed', 'pending_confirmation'] },
+                startAt: { $gte: startOfDay, $lt: endOfDay }
+            }).limit(1);
+
+            if (conflictingAppointments.length > 0) {
+                throw new Error('CONFLICT: No se puede bloquear este día porque ya existen turnos asignados.');
+            }
+        }
 
         if (exception) {
             exception.blocked = blocked;

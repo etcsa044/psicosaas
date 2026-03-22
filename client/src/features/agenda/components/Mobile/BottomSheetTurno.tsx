@@ -109,7 +109,7 @@ export default function BottomSheetTurno({ open, onOpenChange, initialDate, avai
 
     const formatSlotTime = (isoStr: string) => {
         const d = new Date(isoStr);
-        return d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
+        return d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC', hour12: false });
     };
 
     const formatDateLabel = (isoStr: string) => {
@@ -344,7 +344,13 @@ export default function BottomSheetTurno({ open, onOpenChange, initialDate, avai
             </Drawer.Portal>
 
             {showCreatePatient && (
-                <QuickCreatePatientModal onClose={() => setShowCreatePatient(false)} />
+                <QuickCreatePatientModal 
+                    onClose={() => setShowCreatePatient(false)} 
+                    onCreated={(patient) => {
+                        handleSelectPatient(patient);
+                        setShowCreatePatient(false);
+                    }}
+                />
             )}
         </Drawer.Root>
     );

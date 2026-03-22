@@ -17,9 +17,10 @@ type CreatePatientForm = z.infer<typeof createPatientSchema>;
 
 interface QuickCreatePatientModalProps {
     onClose: () => void;
+    onCreated?: (patient: any) => void;
 }
 
-export function QuickCreatePatientModal({ onClose }: QuickCreatePatientModalProps) {
+export function QuickCreatePatientModal({ onClose, onCreated }: QuickCreatePatientModalProps) {
     const { mutateAsync: createPatient, isPending } = useCreatePatient();
 
     const {
@@ -38,7 +39,7 @@ export function QuickCreatePatientModal({ onClose }: QuickCreatePatientModalProp
 
     const onSubmit = async (data: CreatePatientForm) => {
         try {
-            await createPatient({
+            const res = await createPatient({
                 personalInfo: {
                     firstName: data.firstName,
                     lastName: data.lastName,
@@ -46,6 +47,8 @@ export function QuickCreatePatientModal({ onClose }: QuickCreatePatientModalProp
                     ...(data.email ? { email: data.email } : {}),
                 },
             });
+            toast.success('Paciente creado exitosamente');
+            if (onCreated && res?.data) onCreated(res.data);
             onClose();
         } catch (error) {
             console.error('Error creating patient:', error);
