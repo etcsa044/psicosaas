@@ -5,8 +5,8 @@ import { tenantMiddleware } from '@shared/middleware/tenant.middleware';
 
 const router = Router();
 
-// OAuth flow — auth route requires authentication so we know which user is connecting
-router.get('/auth', tenantMiddleware, authMiddleware, googleCalendarController.auth);
+// OAuth flow — auth route accepts token as query param (browser redirects can't carry Bearer headers)
+router.get('/auth', googleCalendarController.auth);
 
 // OAuth callback — this is called by Google, so we DON'T require auth middleware
 // The userId is passed via the `state` query parameter

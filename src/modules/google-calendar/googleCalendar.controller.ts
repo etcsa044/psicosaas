@@ -1,15 +1,29 @@
-import { Response, NextFunction } from 'express';
+import { Response, NextFunction, Request } from 'express';
 import { IAuthRequest } from '@shared/types';
 import { googleCalendarService } from './googleCalendar.service';
 import User from '@modules/auth/models/user.model';
+import jwt from 'jsonwebtoken';
+import { config } from '@config/index';
 
 export const googleCalendarController = {
     /**
      * Redirect user to Google OAuth consent screen.
+     * Accepts the access token as a query parameter since browser redirects cannot carry Bearer headers.
      */
-    async auth(req: IAuthRequest, res: Response, next: NextFunction) {
+    async auth(req: Request, res: Response, next: NextFunction) {
         try {
-            const userId = req.user!._id.toString();
+            const token = req.query.token as string;
+            if (!token) {
+                return res.status(400).json({ status: 'error', message: 'Token is required as query parameter' });
+            }
+
+            // Decode the JWT to extract userId
+            const decoded = jwt.verify(token, config.jwt.accessSecret) as any;
+            const userId = decoded._id || decoded.sub;
+            if (!userId) {
+                return res.status(401).json({ status: 'error', message: 'Invalid token' });
+            }
+
             const authUrl = googleCalendarService.getAuthUrl(userId);
             res.redirect(authUrl);
         } catch (error) {

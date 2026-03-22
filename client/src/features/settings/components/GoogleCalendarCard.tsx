@@ -4,6 +4,7 @@ import { useGoogleStatus, useDisconnectGoogle, useUpdateGoogleSettings } from '.
 import { Loader2, ExternalLink, Unplug, Video } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useEffect } from 'react';
+import { getAccessToken } from '@/lib/axios';
 
 export default function GoogleCalendarCard() {
     const { data: status, isLoading } = useGoogleStatus();
@@ -25,9 +26,13 @@ export default function GoogleCalendarCard() {
     }, []);
 
     const handleConnect = () => {
-        // Redirect to our backend OAuth endpoint
-        const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002';
-        window.location.href = `${backendUrl}/api/integrations/google/auth`;
+        // Redirect through the Next.js rewrite proxy, passing the JWT token as a query param
+        const token = getAccessToken();
+        if (!token) {
+            toast.error('Debés estar logueado para conectar Google Calendar');
+            return;
+        }
+        window.location.href = `/api/integrations/google/auth?token=${encodeURIComponent(token)}`;
     };
 
     const handleDisconnect = async () => {
